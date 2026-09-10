@@ -46,7 +46,7 @@ class Agent:
         nabla_Rqi = 2 * self.alpha * (Rqi - self.prior_poses[self.i][1])
         for k in range(len(self.formation_edges)):
             if self.i == self.formation_edges[k][0]:
-                j,_ = self.formation_edges[k]
+                _,j = self.formation_edges[k]
                 ttilde_ij = self.formation_offsets[k]
                 nabla_Rqi += (1-self.alpha) * 2 * (self.x[j][0] - self.x[self.i][0]) @ (Rqi.T @ (self.x[j][0] - self.x[self.i][0]) - ttilde_ij).T
 
@@ -155,7 +155,7 @@ def main():
     N = 10
     B_comm = 1000
     B_compute = 50
-    kmax = 100000
+    kmax = 15000
     lam = 0.0004
     lam_synch = 0.0004
     alpha = 0
@@ -358,6 +358,7 @@ def main():
             print("Iteration %4g: f = %.4E" % (k, f))
             print("\tSynch Iteration %g: f_synch = %.4E" % (iteration_synch, f_synch))
             print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
+            print("\t|qi|: %s" % (str([np.linalg.norm(x[i][1]).round(2).item() for i in range(N)])))
 
             plot_f.set(xdata=data_iteration, ydata=data_f)
             plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)

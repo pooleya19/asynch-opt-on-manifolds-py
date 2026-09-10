@@ -48,7 +48,7 @@ class Agent:
         nabla_Rqi = 2 * self.alpha * (Rqi - self.prior_poses[self.i][1])
         for k in range(len(self.formation_edges)):
             if self.i == self.formation_edges[k][0]:
-                j,_ = self.formation_edges[k]
+                _,j = self.formation_edges[k]
                 ttilde_ij = self.formation_offsets[k]
                 nabla_Rqi += (1-self.alpha) * 2 * (self.x[j][0] - self.x[self.i][0]) @ (Rqi.T @ (self.x[j][0] - self.x[self.i][0]) - ttilde_ij).T
 
@@ -155,11 +155,11 @@ def main():
     # Define parameters
     rng_seed = 0
     N = 10
-    B_comm = 1000
-    B_compute = 100
+    B_comm = 200
+    B_compute = 200
     kmax = 100000
-    lam = 0.0002
-    lam_synch = 0.0002
+    lam = 0.0005
+    lam_synch = 0.0005
     alpha = 0
     graph_edge_probability = 0.8
     render_iteration_mod = 100
@@ -285,7 +285,7 @@ def main():
         robot_patch = Polygon(robot_shape.T, edgecolor=0.3*np.ones(3), facecolor=colors[i,:], linewidth=1, zorder=2.5)
         ax3.add_patch(robot_patch)
         asynch_robot_patches.append(robot_patch)
-    ax3.set(xlabel="X", ylabel="Y", xlim=(0,world_size), ylim=(0,world_size), aspect="equal", title="Current Formation (Asynch)")
+    ax3.set(xlabel="X", ylabel="Y", xlim=(-0.2*world_size,1.2*world_size), ylim=(-0.2*world_size,1.2*world_size), aspect="equal", title="Current Formation (Asynch)")
 
     synch_robot_patches = []
     for i in range(N):
@@ -293,7 +293,7 @@ def main():
         robot_patch = Polygon(robot_shape.T, edgecolor=0.3*np.ones(3), facecolor=colors[i,:], linewidth=1, zorder=2.5)
         ax4.add_patch(robot_patch)
         synch_robot_patches.append(robot_patch)
-    ax4.set(xlabel="X", ylabel="Y", xlim=(0,world_size), ylim=(0,world_size), aspect="equal", title="Current Formation (Synch)")
+    ax4.set(xlabel="X", ylabel="Y", xlim=(-0.2*world_size,1.2*world_size), ylim=(-0.2*world_size,1.2*world_size), aspect="equal", title="Current Formation (Synch)")
 
     plt.show(block=False)
 
@@ -393,6 +393,7 @@ def main():
             print("Iteration %4g: f = %.4E" % (k, f))
             print("\tSynch Iteration %g: f_synch = %.4E" % (iteration_synch, f_synch))
             print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
+            print("\t|qi|: %s" % (str([np.linalg.norm(x[i][0]).round(2).item() for i in range(N)])))
 
             plot_f.set(xdata=data_iteration, ydata=data_f)
             plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)
