@@ -154,10 +154,10 @@ def main():
     rng_seed = 0
     N = 10
     B_comm = 1000
-    B_compute = 100
-    kmax = 10000
-    lam = 0.0002
-    lam_synch = 0.0002
+    B_compute = 50
+    kmax = 100000
+    lam = 0.0004
+    lam_synch = 0.0004
     alpha = 0
     graph_edge_probability = 0.8
     render_iteration_mod = 100
@@ -179,7 +179,7 @@ def main():
     adjacency_mat = None
     for attempt in range(20):
         A_rand = rng.uniform(size=(N,N))
-        A_rand = (A_rand+A_rand.T)/2
+        A_rand = (A_rand+A_rand.T)/2 + 10*np.eye(N)
         A = (A_rand <= graph_edge_probability) * 1
         # Check if connected
         D = np.diag(np.sum(A,axis=1))
