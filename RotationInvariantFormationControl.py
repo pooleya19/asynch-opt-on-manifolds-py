@@ -18,44 +18,47 @@ def copy(message):
 
 
 class Agent:
-    def __init__(self, i, manifold, x_initial, lam, formation_edges, formation_offsets):
+    def __init__(self, i, manifold, x_initial, lam, data):
         self.i = i
         self.manifold = manifold
         self.x = copy(x_initial)
         self.lam = lam
-        self.formation_edges = formation_edges
-        self.formation_offsets = formation_offsets
+
+        self.alpha, self.prior_poses, self.formation_edges, self.formation_offsets = data
 
     def calculate_euclidean_grad(self):
-        # Calculate gradient of f wrt R(x_i)
-        nabla_R_x_i = np.zeros((3,3))
-        for k in range(len(self.edges)):
-            if self.i == self.edges[k][0]:
-                i,j = self.edges[k]
-                Rtilde_ij = self.measurements[k]
+        # Calculate gradient f wrt ti
+        nabla_ti = 2* self.alpha * (self.x[self.i][0] - self.prior_poses[self.i][0])
+        for k in range(len(self.formation_edges)):
+            if self.i == self.formation_edges[k][0]:
+                i,j = self.formation_edges[k]
+                ttilde_ij = self.formation_offsets[k]
+                Rqi = quat_to_rot_mat(self.x[i][1])
+                nabla_ti += 2*(1-self.alpha)*(self.x[i][0] - self.x[j][0] + Rqi@ttilde_ij)
+            elif self.i == self.formation_edges[k][1]:
+                j,i = self.formation_edges[k]
+                ttilde_ji = self.formation_offsets[k]
+                Rqj = quat_to_rot_mat(self.x[j][1])
+                nabla_ti += 2*(1-self.alpha)*(self.x[i][0] - self.x[j][0] - Rqj@ttilde_ji)
 
-                R_x_i = quat_to_rot_mat(self.x[i])
-                R_x_j = quat_to_rot_mat(self.x[j])
+        # Calculate gradient f wrt Rqi
+        Rqi = quat_to_rot_mat(self.x[i][1])
+        nabla_Rqi = 2 * self.alpha * (Rqi - self.prior_poses[i][1])
+        for k in range(len(self.formation_edges)):
+            if self.i == self.formation_edges[k][0]:
+                ttilde_ij = self.formation_offsets[k]
+                nabla_Rqi += (1-self.alpha) * 2 * (self.x[j][0] - self.x[i][0]) @ (Rqi.T @ (self.x[j][0] - self.x[i][0]) - ttilde_ij).T
 
-                nabla_R_x_i += 2*R_x_i - 2*R_x_j @ Rtilde_ij.T
-                
-            elif self.i == self.edges[k][1]:
-                j,i = self.edges[k]
-                Rtilde_ji = self.measurements[k]
+        # Calculate partial of Rqi wrt qic, c = [w,x,y,z]
+        partials_Rqi = partial_rot_mat_partial_quat(self.x[self.i][1])
 
-                R_x_i = quat_to_rot_mat(self.x[i])
-                R_x_j = quat_to_rot_mat(self.x[j])
-
-                nabla_R_x_i += 2*R_x_i - 2*R_x_j @ Rtilde_ji
-
-        # Calculate partial of R(x_i) wrt x_ic, c = [w,x,y,z]
-        partials_R_x_i = partial_rot_mat_partial_quat(self.x[self.i])
-
-        # Calculate gradient of f wrt x_i
-        nabla_x_i = np.zeros((4,1))
+        # Calculate gradient of f wrt qi
+        nabla_qi = np.zeros((4,1))
         for i in range(4):
-            nabla_x_i[i,0] = np.trace(nabla_R_x_i.T @ partials_R_x_i[i])
-        return nabla_x_i
+            nabla_qi[i,0] = np.trace(nabla_Rqi.T @ partials_Rqi[i])
+
+        nabla_xi = [nabla_ti, nabla_qi]
+        return nabla_xi
 
     def compute(self):
         # Calculate Euclidean gradient
@@ -65,16 +68,17 @@ class Agent:
         grad_xi = self.manifold.proj(self.x[self.i], euc_grad_xi)
 
         # Perform gradient step
-        self.x[self.i] = self.manifold.exp(self.x[self.i], -self.lam*grad_xi)
+        self.x[self.i] = self.manifold.exp(self.x[self.i], [-self.lam*grad_xi[0], -self.lam*grad_xi[1]])
 
 
 class SynchAgent:
-    def __init__(self, i, manifold, x_initial, lam, formation_edges, formation_offsets):
+    def __init__(self, i, manifold, x_initial, lam, data):
         self.i = i
         self.manifold = manifold
+        self.x = copy(x_initial)
         self.lam = lam
-        self.formation_edges = formation_edges
-        self.formation_offsets = formation_offsets
+
+        self.alpha, self.prior_poses, self.formation_edges, self.formation_offsets = data
 
         self.current_iteration = 0
         self.current_x = copy(x_initial)
@@ -82,39 +86,45 @@ class SynchAgent:
         self.sent_current = False
 
     def calculate_euclidean_grad(self):
-        # Calculate gradient of f wrt R(x_i)
-        nabla_R_x_i = np.zeros((3,3))
-        for k in range(len(self.edges)):
-            if self.i == self.edges[k][0]:
-                i,j = self.edges[k]
-                Rtilde_ij = self.measurements[k]
-
-                if self.current_x[j] is None:
+        # Calculate gradient f wrt ti
+        nabla_ti = 2* self.alpha * (self.x[self.i][0] - self.prior_poses[self.i][0])
+        for k in range(len(self.formation_edges)):
+            if self.i == self.formation_edges[k][0]:
+                i,j = self.formation_edges[k]
+                if self.x[j] is None:
                     return None
-                R_x_i = quat_to_rot_mat(self.current_x[i])
-                R_x_j = quat_to_rot_mat(self.current_x[j])
-
-                nabla_R_x_i += 2*R_x_i - 2*R_x_j @ Rtilde_ij.T
-                
-            elif self.i == self.edges[k][1]:
-                j,i = self.edges[k]
-                Rtilde_ji = self.measurements[k]
-
-                if self.current_x[j] is None:
+                ttilde_ij = self.formation_offsets[k]
+                Rqi = quat_to_rot_mat(self.x[i][1])
+                nabla_ti += 2*(1-self.alpha)*(self.x[i][0] - self.x[j][0] + Rqi@ttilde_ij)
+            elif self.i == self.formation_edges[k][1]:
+                j,i = self.formation_edges[k]
+                if self.x[j] is None:
                     return None
-                R_x_i = quat_to_rot_mat(self.current_x[i])
-                R_x_j = quat_to_rot_mat(self.current_x[j])
+                ttilde_ji = self.formation_offsets[k]
+                Rqj = quat_to_rot_mat(self.x[j][1])
+                nabla_ti += 2*(1-self.alpha)*(self.x[i][0] - self.x[j][0] - Rqj@ttilde_ji)
 
-                nabla_R_x_i += 2*R_x_i - 2*R_x_j @ Rtilde_ji
+        # Calculate gradient f wrt Rqi
+        Rqi = quat_to_rot_mat(self.x[i][1])
+        nabla_Rqi = 2 * self.alpha * (Rqi - self.prior_poses[i][1])
+        for k in range(len(self.formation_edges)):
+            if self.i == self.formation_edges[k][0]:
+                i,j = self.formation_edges[k]
+                if self.x[j] is None:
+                    return None
+                ttilde_ij = self.formation_offsets[k]
+                nabla_Rqi += (1-self.alpha) * 2 * (self.x[j][0] - self.x[i][0]) @ (Rqi.T @ (self.x[j][0] - self.x[i][0]) - ttilde_ij).T
 
-        # Calculate partial of R(x_i) wrt x_ic, c = [w,x,y,z]
-        partials_R_x_i = partial_rot_mat_partial_quat(self.current_x[self.i])
+        # Calculate partial of Rqi wrt qic, c = [w,x,y,z]
+        partials_Rqi = partial_rot_mat_partial_quat(self.x[self.i][1])
 
-        # Calculate gradient of f wrt x_i
-        nabla_x_i = np.zeros((4,1))
+        # Calculate gradient of f wrt qi
+        nabla_qi = np.zeros((4,1))
         for i in range(4):
-            nabla_x_i[i,0] = np.trace(nabla_R_x_i.T @ partials_R_x_i[i])
-        return nabla_x_i
+            nabla_qi[i,0] = np.trace(nabla_Rqi.T @ partials_Rqi[i])
+
+        nabla_xi = [nabla_ti, nabla_qi]
+        return nabla_xi
 
     def compute(self):
         if self.sent_current: # Must send message before overwriting it
@@ -126,14 +136,14 @@ class SynchAgent:
                 grad_xi = self.manifold.proj(self.current_x[self.i], euc_grad_xi)
 
                 # Perform gradient step
-                self.next_x[self.i] = self.manifold.exp(self.current_x[self.i], -self.lam*grad_xi)
+                self.next_x[self.i] = self.manifold.exp(self.current_x[self.i], [-self.lam*grad_xi[0], -self.lam*grad_xi[1]])
 
                 # Update buffers
                 for i in range(len(self.next_x)):
                     if self.next_x[i] is None:
                         self.current_x[i] = None
                     else:
-                        self.current_x[i] = self.next_x[i].copy()
+                        self.current_x[i] = copy(self.next_x[i])
                 self.next_x = [None for i in range(len(self.current_x))]
                 self.current_iteration += 1
                 self.sent_current = False
@@ -154,6 +164,15 @@ def main():
 
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
+
+    # Generate prior poses
+    prior_poses = []
+    for i in range(N):
+        random_position = rng.uniform(low=np.zeros((3,1)), high=world_size*np.ones((3,1)), size=(3,1))
+        random_quaternion = rng.multivariate_normal(size=(4,1))
+        random_unit_quaternion = random_quaternion / np.linalg.norm(random_quaternion)
+        random_rot_mat = quat_to_rot_mat(random_unit_quaternion)
+        prior_poses.append([random_position, random_rot_mat])
 
     # Generate formation graph
     adjacency_mat = None
@@ -300,11 +319,15 @@ def main():
         # Calculate f asynch and f synch
         f = 0
         f_synch = 0
-        for edge_index in range(len(formation_edges)):
-            i,j = formation_edges[edge_index]
-            Rtilde_ij = measurements[edge_index]
-            f += np.linalg.norm(quat_to_rot_mat(x[i]).T @ quat_to_rot_mat(x[j]) - Rtilde_ij, "fro")**2
-            f_synch += np.linalg.norm(quat_to_rot_mat(x_synch[i]).T @ quat_to_rot_mat(x_synch[j]) - Rtilde_ij, "fro")**2
+        alpha = 2
+        for i in range(N):
+            f += alpha * np.linalg.norm(x[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(x[i][1]) - prior_poses[i][1], "fro")**2
+            f_synch += alpha * np.linalg.norm(x_synch[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]) - prior_poses[i][1], "fro")**2
+        for e in range(len(formation_edges)):
+            i,j = formation_edges[e]
+            ttilde_ij = formation_offsets[e]
+            f += (1 - alpha) * np.linalg.norm(quat_to_rot_mat(x[i][1]).T @ (x[j][0] - x[i][0]) - ttilde_ij)**2
+            f_synch += (1 - alpha) * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]).T @ (x_synch[j][0] - x_synch[i][0]) - ttilde_ij)**2
 
         # Update plots
         data_iteration.append(k)
