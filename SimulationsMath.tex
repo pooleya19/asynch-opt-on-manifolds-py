@@ -1,0 +1,578 @@
+\documentclass[letterpaper, 10 pt, conference, onecolumn]{ieeeconf}
+\overrideIEEEmargins
+
+\usepackage{amsmath,amsfonts}
+\usepackage{algorithm}
+\usepackage{array}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{relsize}
+\usepackage[noend]{algpseudocode}
+\usepackage{etoolbox}
+
+\let\IEEEproof\proof
+\let\IEEEendproof\endproof
+\let\proof\relax
+\let\endproof\relax
+
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{color}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\usepackage{hyperref}
+\hypersetup{
+    pdftitle={Adam Partially Asynchronous Manifolds},
+    pdfauthor={Adam Pooley, William Warke, Matthew Hale},
+}
+% \hypersetup{
+%     colorlinks=true,
+%     linkcolor=blue,    % Color for internal links (sections, etc.)
+%     urlcolor=cyan,      % Color for web links
+%     citecolor=blue,    % Sets the color specifically for citations
+% }
+
+% \usepackage{cleveref}
+
+\mathtoolsset{showonlyrefs}
+
+
+% \renewcommand\qedsymbol{$\blacksquare$}
+\renewcommand{\qedsymbol}{$\square$}
+
+\theoremstyle{definition}
+\newtheorem{definition}{\protect\definitionname}
+\newtheorem{assumption}{\protect\assumptionname}
+\newtheorem{lemma}{\protect\lemmaname}
+\newtheorem{proposition}{\protect\propositionname}
+\newtheorem{example}{Example}
+\newtheorem{remark}{Remark}
+\newtheorem{exercise}{Exercise}
+\theoremstyle{plain}
+\newtheorem{theorem}{\protect\theoremname}
+\newtheorem{problem}{Problem}
+\newtheorem{corollary}{Corollary}
+
+\providecommand{\assumptionname}{Assumption}
+\providecommand{\definitionname}{Definition}
+\providecommand{\lemmaname}{Lemma}
+\providecommand{\theoremname}{Theorem}
+\providecommand{\propositionname}{Proposition}
+
+\newcommand{\mh}[1]{\textcolor{red}{#1}} % Comments from Dr. Hale
+\newcommand{\ap}[1]{\textcolor{blue}{#1}} % Comments from Adam
+
+\newtcolorbox{aside}[1][]{
+  enhanced,
+  breakable,
+  colback=gray!5,
+  colframe=gray!50,
+  boxrule=0.4pt,
+  arc=1pt,
+  left=6pt, right=6pt, top=4pt, bottom=4pt,
+  fontupper=\small,
+  before skip=6pt, after skip=6pt,
+  attach title to upper={\itshape\ },
+  % title={Aside#1.},
+  coltitle=black,
+  fonttitle=\itshape\small,
+}
+\newcommand{\reminder}[1]{%
+  % $\left[\colorbox{gray!8}{\ensuremath{#1}}\right]$%
+  $\left[\colorbox{gray!8}{#1}\right]$%
+}
+\newtcolorbox{alert}{
+  colback=yellow!20, colframe=yellow!50!orange,
+  boxrule=0.5pt, arc=2pt,
+  left=6pt, right=6pt, top=4pt, bottom=4pt,
+  tcbox width=auto limited,
+  width=0.8\linewidth,
+  center,
+}
+\newtcbox{\assume}{
+    on line,
+    boxsep=0pt,
+    left=3pt, right=3pt,
+    top=0pt, bottom=0pt,
+    colback=LimeGreen!15,
+    colframe=LimeGreen!50,
+    before upper={\strut}
+}
+
+% \newcommand{\assume}[1]{%
+%   % $\left[\colorbox{gray!8}{\ensuremath{#1}}\right]$%
+%   % \colorbox{LimeGreen!50}{#1}
+%   \tcbox[colback=LimeGreen!30, colframe=LimeGreen!50, on line, boxsep=0pt, left=3pt]{#1}
+% }
+
+\title{\LARGE \bf
+Partially Asynchronous Optimization on Manifolds
+}
+
+\author{Adam~Pooley, William~Warke, Matthew~Hale}
+
+\begin{document}
+    \maketitle
+
+    % Sets
+    \newcommand{\R}[1]{\mathbb{R}^{#1}}
+    \newcommand{\N}[1]{\mathbb{N}^{#1}}
+    \newcommand{\Z}[1]{\mathbb{Z}^{#1}}
+    \newcommand{\seq}[1]{[#1]}
+
+    % Operators
+    \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+    \newcommand{\grad}{\text{grad}}
+    \newcommand{\Hess}{\text{Hess}}
+    \newcommand{\diff}{\text{D}}
+    \newcommand{\fracpart}[2]{\frac{\partial #1}{\partial #2}}
+    \newcommand{\fracder}[2]{\frac{d #1}{d #2}}
+    \newcommand{\superth}[1]{\ensuremath{#1^{\text{th}}}}
+    \newcommand{\dist}{\text{dist}}
+    \newcommand{\inj}{\text{inj}}
+    \newcommand{\Exp}{\text{Exp}}
+    \newcommand{\Log}{\text{Log}}
+    \newcommand{\trace}{\text{Tr}}
+    \newcommand{\maxzero}[1]{[#1]^+}
+    \newcommand{\from}{\leftarrow}
+
+    % Vectors/Matrices
+    \newcommand{\zero}[1]{\mathbf{0}^{#1}}
+    \newcommand{\eye}[1]{\mathbf{I}^{#1}}
+
+    % Asynchrony
+    \newcommand{\delay}{\tau}
+
+    \tableofcontents
+    \newpage
+    
+
+    
+    \section{Simulations}
+
+
+    \subsection{Background on Unit Quaternions}
+    Let $q\in S^3$ be a unit quaternion, given by
+    \begin{equation}
+        q = q_w + q_x i + q_y j + q_z k  = q_r + q_v\in S^3.
+    \end{equation}
+
+    The conjugate of $q$ is denoted $q^*$ and given by
+    \begin{equation}
+        q^* = q_w - q_x i - q_y j - q_z k = q_r - q_v.
+    \end{equation}
+    It holds that $(q^*)^* = q$, and $(pq)^* = q^* p^*$.
+
+    The quaternion product is given by
+    \begin{align}
+        pq 
+        &= (p_r q_r - p_v \cdot q_v) + (p_r q_v + q_r p_v + p_v \times q_v)
+        \\
+        &= (p\cdot q^*) + (p_r q_v + q_r p_v + p_v \times q_v).
+    \end{align}
+
+    A rotation of $\theta$ radians around the axis $u\in\R{3}$ is given by
+    \begin{equation}
+        q = \cos \frac{\theta}{2} + u \sin \frac{\theta}{2}.
+    \end{equation}
+
+    Represent a vector $v_v\in\R{3}$ as a pure quaternion, $v=(0,v_v).$
+    The rotation of a vector $v_v\in\R{3}$ by a unit quaternion $q$ is given by
+    \begin{equation}
+        L_q(v) = q v q^*.
+    \end{equation}
+
+    It follows that the composition of $L_{q2}$ and $L_{q1}$ is given by
+    \begin{equation}
+        L_{q2}(L_{q1}(v)) = L_{q2 \, q1}(v).
+    \end{equation}
+
+    Equivalently, the rotation of a vector by a quaternion can written using rotation matrices.
+    Let $R(q) \in SO(3)$ be the rotation matrix induced by $q$, such that
+    \begin{equation}
+        L_q(v) = R(q) v_v,
+    \end{equation}
+    where
+    \begin{equation}
+        R(q) = \begin{bmatrix}
+            1-2(q_y^2 + q_z^2) & 2(q_x q_y - q_z q_w) & 2(q_x q_z + q_y q_w) \\
+            2(q_x q_y + q_z q_w) & 1-2(q_x^2 + q_z^2) & 2(q_y q_z - q_x q_w) \\
+            2(q_x q_z - q_y q_w) & 2(q_y q_z + q_x q_w) & 1-2(q_x^2 + q_y^2)
+        \end{bmatrix}.
+    \end{equation}
+
+    This representation can be differentiated with respect to $q_w$, $q_x$, $q_y$, and $q_z$, via
+    \begin{align}
+        \frac{\partial R(q)}{\partial q_w}
+        &= \begin{bmatrix}
+            0 & -2q_z & 2q_y \\
+            2q_z & 0 & -2q_x \\
+            -2q_y & 2q_x & 0
+        \end{bmatrix},
+        \\
+        \frac{\partial R(q)}{\partial q_x}
+        &= \begin{bmatrix}
+            0 & 2q_y & 2q_z \\
+            2q_y & -4 q_x & -2q_w \\
+            2q_z & 2q_w & -4q_x
+        \end{bmatrix},
+        \\
+        \frac{\partial R(q)}{\partial q_y}
+        &= \begin{bmatrix}
+            -4q_y & 2q_x & 2q_w \\
+            2q_x & 0 & 2q_z \\
+            -2q_w & 2q_z & -4q_y
+        \end{bmatrix},
+        \\
+        \frac{\partial R(q)}{\partial q_z}
+        &= \begin{bmatrix}
+            -4q_z & -2q_w & 2q_x \\
+            2q_w & -4q_z & 2q_y \\
+            2q_x & 2q_y & 0
+        \end{bmatrix}.
+    \end{align}
+
+    Let $f$ be some function of $R(q)$, and let $\nabla_{R(q)} f$ denote the gradient of $f$ with respect to $R(q)$.
+    Then, the gradient of $f$ with respect to $q$ is given by
+    \begin{equation}
+        \nabla_q f = \begin{bmatrix}
+            \langle \nabla_{R(q)} f, \frac{\partial R(q)}{\partial q_w} \rangle_F
+            \\
+            \langle \nabla_{R(q)} f, \frac{\partial R(q)}{\partial q_x} \rangle_F
+            \\
+            \langle \nabla_{R(q)} f, \frac{\partial R(q)}{\partial q_y} \rangle_F
+            \\
+            \langle \nabla_{R(q)} f, \frac{\partial R(q)}{\partial q_z} \rangle_F
+        \end{bmatrix}.
+    \end{equation}
+
+    Let $c\in\{w,x,y,z\}$.
+    For clarity, we can see
+    \begin{align}
+        \left\langle \nabla_{R(q)} f, \frac{\partial R(q)}{\partial q_c} \right\rangle_F
+        &= \left\langle \begin{bmatrix}
+            \frac{\partial f}{\partial R(q)_{11}} & \frac{\partial f}{\partial R(q)_{12}} & \frac{\partial f}{\partial R(q)_{13}} \\
+            \frac{\partial f}{\partial R(q)_{21}} & \frac{\partial f}{\partial R(q)_{22}} & \frac{\partial f}{\partial R(q)_{23}} \\
+            \frac{\partial f}{\partial R(q)_{31}} & \frac{\partial f}{\partial R(q)_{32}} & \frac{\partial f}{\partial R(q)_{33}} \\
+        \end{bmatrix}, \begin{bmatrix}
+            \frac{\partial R(q)_{11}}{\partial q_c} & \frac{\partial R(q)_{12}}{\partial q_c} & \frac{\partial R(q)_{13}}{\partial q_c} \\
+            \frac{\partial R(q)_{21}}{\partial q_c} & \frac{\partial R(q)_{22}}{\partial q_c} & \frac{\partial R(q)_{33}}{\partial q_c} \\
+            \frac{\partial R(q)_{31}}{\partial q_c} & \frac{\partial R(q)_{32}}{\partial q_c} & \frac{\partial R(q)_{33}}{\partial q_c} \\
+        \end{bmatrix} \right\rangle_F
+        \\
+        &= \trace\left( \begin{bmatrix}
+            \frac{\partial f}{\partial R(q)_{11}} & \frac{\partial f}{\partial R(q)_{12}} & \frac{\partial f}{\partial R(q)_{13}} \\
+            \frac{\partial f}{\partial R(q)_{21}} & \frac{\partial f}{\partial R(q)_{22}} & \frac{\partial f}{\partial R(q)_{23}} \\
+            \frac{\partial f}{\partial R(q)_{31}} & \frac{\partial f}{\partial R(q)_{32}} & \frac{\partial f}{\partial R(q)_{33}} \\
+        \end{bmatrix}^\top \begin{bmatrix}
+            \frac{\partial R(q)_{11}}{\partial q_c} & \frac{\partial R(q)_{12}}{\partial q_c} & \frac{\partial R(q)_{13}}{\partial q_c} \\
+            \frac{\partial R(q)_{21}}{\partial q_c} & \frac{\partial R(q)_{22}}{\partial q_c} & \frac{\partial R(q)_{33}}{\partial q_c} \\
+            \frac{\partial R(q)_{31}}{\partial q_c} & \frac{\partial R(q)_{32}}{\partial q_c} & \frac{\partial R(q)_{33}}{\partial q_c} \\
+        \end{bmatrix} \right)
+        \\
+        &= \trace\left( \begin{bmatrix}
+            \frac{\partial f}{\partial R(q)_{11}} & \frac{\partial f}{\partial R(q)_{21}} & \frac{\partial f}{\partial R(q)_{31}} \\
+            \frac{\partial f}{\partial R(q)_{12}} & \frac{\partial f}{\partial R(q)_{22}} & \frac{\partial f}{\partial R(q)_{32}} \\
+            \frac{\partial f}{\partial R(q)_{13}} & \frac{\partial f}{\partial R(q)_{23}} & \frac{\partial f}{\partial R(q)_{33}} \\
+        \end{bmatrix} \begin{bmatrix}
+            \frac{\partial R(q)_{11}}{\partial q_c} & \frac{\partial R(q)_{12}}{\partial q_c} & \frac{\partial R(q)_{13}}{\partial q_c} \\
+            \frac{\partial R(q)_{21}}{\partial q_c} & \frac{\partial R(q)_{22}}{\partial q_c} & \frac{\partial R(q)_{33}}{\partial q_c} \\
+            \frac{\partial R(q)_{31}}{\partial q_c} & \frac{\partial R(q)_{32}}{\partial q_c} & \frac{\partial R(q)_{33}}{\partial q_c} \\
+        \end{bmatrix} \right)
+        \\
+        &= \frac{\partial f}{\partial R(q)_{11}} \frac{\partial R(q)_{11}}{\partial q_c}
+        + \frac{\partial f}{\partial R(q)_{21}} \frac{\partial R(q)_{21}}{\partial q_c}
+        + \frac{\partial f}{\partial R(q)_{31}} \frac{\partial R(q)_{31}}{\partial q_c}
+        \\&\qquad + \frac{\partial f}{\partial R(q)_{12}} \frac{\partial R(q)_{12}}{\partial q_c}
+        + \frac{\partial f}{\partial R(q)_{22}} \frac{\partial R(q)_{22}}{\partial q_c}
+        + \frac{\partial f}{\partial R(q)_{32}} \frac{\partial R(q)_{32}}{\partial q_c}
+        \\&\qquad + \frac{\partial f}{\partial R(q)_{13}} \frac{\partial R(q)_{13}}{\partial q_c}
+        + \frac{\partial f}{\partial R(q)_{23}} \frac{\partial R(q)_{23}}{\partial q_c}
+        + \frac{\partial f}{\partial R(q)_{33}} \frac{\partial R(q)_{33}}{\partial q_c}
+        \\
+        &= \frac{\partial f}{\partial q_c}.
+    \end{align}
+
+
+    \subsection{Toy Euclidean Problem}
+    Manifold: 3-dimensional Euclidean space,
+    \begin{equation}
+        \mathcal{M}_i = \R{3}.
+    \end{equation}
+
+    Objective function:
+    \begin{equation}
+        f(\mathcal{D}) = \sum_{(i,j)\in E} \norm{x_j - x_i - \tilde{d}_{ij}}_{R_{ij}^{-1}}^2,
+    \end{equation}
+    where $E\in\seq{N}^2$ is a set of directed measurement edges and $\tilde{d}_{ij}$ is a noisy measurement given by
+    \begin{equation}
+        \tilde{d}_{ij} = x_j - x_i + v_{ij},
+    \end{equation}
+    with zero-mean Gaussian measurement noise $v_{ij} \in \mathcal{N}(\zero{3},R_{ij})$
+    and covariance matrix $R_{ij} = R_{ij}^\top \succ 0$.
+
+    Gradient:
+    \begin{align}
+        f(\mathcal{D}) 
+        &= \sum_{(i,j)\in E} \norm{x_j - x_i - \tilde{d}_{ij}}_{R_{ij}^{-1}}^2
+        \\
+        &= \sum_{(i,j)\in E} (x_j - x_i - \tilde{d}_{ij})^\top R_{ij}^{-1} (x_j - x_i - \tilde{d}_{ij}).
+    \end{align}
+
+    The gradient of $f$ with respect to $x_i\in\mathcal{M}_i$ is given by
+    \begin{equation}
+        \grad_{x_i} f(x) = - 2 \sum_{j : (i,j)\in E} R_{ij}^{-1} (x_j - x_i - \tilde{d}_{ij}) 
+        + 2 \sum_{j : (j,i) \in E} R_{ji}^{-1} (x_i - x_j - \tilde{d}_{ji}).
+    \end{equation}
+
+
+    \subsection{Rotation Averaging}
+    Manifold: Unit Quaternion,
+    \begin{equation}
+        \mathcal{M}_i = S^3.
+    \end{equation}
+
+    Objective function:
+    \begin{equation}
+        f(x) = \sum_{(i,j)\in E} \norm{R(x_i)^\top R(x_j) - \tilde{R}_{ij}}_F^2,
+    \end{equation}
+    where $E\in\seq{N}^2$ is a set of directed measurement edges and $\tilde{R}_{ij}$ is a noisy measurement given by
+    \begin{equation}
+        \tilde{R}_{ij} = R(x_i)^\top R(x_j) V_{ij},
+    \end{equation}
+    where $V_{ij}$ is a perturbation rotation matrix corresponding to the rotation about a random axis by a zero-mean Gaussian angle.
+
+    Gradient:
+    Let $\bar{f}$ be the smooth extension of $f$ to $\R{4}$, given by
+    \begin{equation}
+        \bar{f}(x) = \sum_{(i,j)\in E} \norm{R(x_i)^\top R(x_j) - \tilde{R}_{ij}}_F^2.
+    \end{equation}
+
+    Define $R_i, R_j \in SO(3)$ via
+    \begin{align}
+        R_i &= R(x_i)
+        \\
+        R_j &= R(x_j).
+    \end{align}
+
+    Plug in $R_i$ for all $i\in\seq{N}$ into $\bar{f}$.
+    Note that for all $i\in\seq{N}$, the variable $x_i$ only appears through $R_i$.
+    As such, we define $\tilde{f}$ in terms of $R_i$ via
+    \begin{equation}
+        \tilde{f}(\{R_1,\dots,R_N\}) = \sum_{(i,j)\in E} \norm{R_i^\top R_j - \tilde{R}_{ij}}_F^2.
+    \end{equation}
+
+    Choose $i\in\seq{N}$ and choose a matrix $V_i \in \R{3\times 3}$.
+    Define $V = \{\zero{},\dots,V_i,\dots,\zero{}\}$
+    Then,
+    \begin{align}
+        D \tilde{f}(\{R_1,\dots,R_N\})[V]
+        &= \lim_{t\to0} \frac{\tilde{f}(\{R_1,\dots,R_i+tV_i,\dots,R_N\}) - \tilde{f}(\{R_1,\dots,R_N\})}{t}
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \Bigg( \sum_{j:(i,j)\in E} \left( \norm{(R_i+tV_i)^\top R_j - \tilde{R}_{ij}}_F^2 - \norm{R_i^\top R_j - \tilde{R}_{ij}}_F^2 \right) \\ 
+        &\qquad + \sum_{j:(j,i)\in E} \left( \norm{R_j^\top (R_i+tV_i) - \tilde{R}_{ji}}_F^2 - \norm{R_j^\top R_i - \tilde{R}_{ji}}_F^2\right) \Bigg)
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \Bigg( \sum_{j:(i,j)\in E} \left( \norm{R_i^\top R_j - \tilde{R}_{ij} + tV_i^\top R_j}_F^2 - \norm{R_i^\top R_j - \tilde{R}_{ij}}_F^2 \right) \\ 
+        &\qquad + \sum_{j:(j,i)\in E} \left( \norm{R_j^\top R_i - \tilde{R}_{ji} + t R_j^\top V_i}_F^2 - \norm{R_j^\top R_i - \tilde{R}_{ji}}_F^2\right) \Bigg)
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \Bigg( \sum_{j:(i,j)\in E} \trace \left( 2 \left(tV_i^\top R_j\right)^\top \left(R_i^\top R_j - \tilde{R}_{ij}\right) + \left(tV_i^\top R_j\right)^\top \left(tV_i^\top R_j\right) \right) \\ 
+        &\qquad + \sum_{j:(j,i)\in E} \trace \left( 2 \left(t R_j^\top V_i\right)^\top \left(R_j^\top R_i - \tilde{R}_{ji}\right) + \left(t R_j^\top V_i\right)^\top \left(t R_j^\top V_i\right) \right) \Bigg)
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \Bigg( \sum_{j:(i,j)\in E} \trace \left( 2 t R_j^\top V_i R_i^\top R_j - 2 t R_j^\top V_i \tilde{R}_{ij} + t^2 R_j^\top V_i V_i^\top R_j \right) \\ 
+        &\qquad + \sum_{j:(j,i)\in E} \trace \left( 2 t V_i^\top R_j R_j^\top R_i - 2 t V_i^\top R_j \tilde{R}_{ji} + t^2 V_i^\top R_j R_j^\top V_i \right) \Bigg)
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \Bigg( \sum_{j:(i,j)\in E} \trace \left( 2 t V_i R_i^\top - 2 t R_j^\top V_i \tilde{R}_{ij} + t^2 V_i V_i^\top \right) \\ 
+        &\qquad + \sum_{j:(j,i)\in E} \trace \left( 2 t V_i^\top R_i - 2 t V_i^\top R_j \tilde{R}_{ji} + t^2 V_i^\top V_i \right) \Bigg)
+        \\
+        &= \lim_{t\to0} \Bigg( \sum_{j:(i,j)\in E} \trace \left( 2 V_i R_i^\top - 2 R_j^\top V_i \tilde{R}_{ij} + t V_i V_i^\top \right) \\ 
+        &\qquad + \sum_{j:(j,i)\in E} \trace \left( 2 V_i^\top R_i - 2 V_i^\top R_j \tilde{R}_{ji} + t V_i^\top V_i \right) \Bigg)
+        \\
+        &= \sum_{j:(i,j)\in E} \trace \left( 2 V_i R_i^\top - 2 R_j^\top V_i \tilde{R}_{ij} \right) + \sum_{j:(j,i)\in E} \trace \left( 2 V_i^\top R_i - 2 V_i^\top R_j \tilde{R}_{ji} \right)
+        \\
+        &= \trace \left( \sum_{j:(i,j)\in E} \left( 2 V_i R_i^\top - 2 R_j^\top V_i \tilde{R}_{ij} \right) + \sum_{j:(j,i)\in E} \left( 2 V_i^\top R_i - 2 V_i^\top R_j \tilde{R}_{ji} \right) \right)
+        \\
+        &= \trace \left( \sum_{j:(i,j)\in E} \left( 2 V_i^\top R_i - 2 V_i^\top R_j \tilde{R}_{ij}^\top \right) + \sum_{j:(j,i)\in E} \left( 2 V_i^\top R_i - 2 V_i^\top R_j \tilde{R}_{ji} \right) \right)
+        \\
+        &= \trace \left(V_i^\top \left( \sum_{j:(i,j)\in E} \left( 2 R_i - 2 R_j \tilde{R}_{ij}^\top \right) + \sum_{j:(j,i)\in E} \left( 2 R_i - 2 R_j \tilde{R}_{ji} \right) \right) \right)
+        \\
+        &= \trace\left( V_i^\top \nabla_{R_i} \tilde{f}\right)
+    \end{align}
+
+    Thus, we know
+    \begin{equation}
+        \nabla_{R_i} \tilde{f}(\{R_1,\dots,R_N\}) = \sum_{j:(i,j)\in E} \left( 2 R_i - 2 R_j \tilde{R}_{ij}^\top \right) + \sum_{j:(j,i)\in E} \left( 2 R_i - 2 R_j \tilde{R}_{ji} \right).
+    \end{equation}
+
+    Equivalently, we know
+    \begin{equation}
+        \nabla_{R(x_i)} \bar{f}(x) = \sum_{j:(i,j)\in E} \left( 2 R(x_i) - 2 R(x_j) \tilde{R}_{ij}^\top \right) + \sum_{j:(j,i)\in E} \left( 2 R(x_i) - 2 R(x_j) \tilde{R}_{ji} \right).
+    \end{equation}
+
+    Finally, we again use chain rule, according to
+    \begin{equation}
+        \nabla_{x_i} \bar{f}(x) = \begin{bmatrix}
+            \langle \nabla_{R(x_i)} \bar{f}, \frac{\partial R(x_i)}{\partial q_w} \rangle_F
+            \\
+            \langle \nabla_{R(x_i)} \bar{f}, \frac{\partial R(x_i)}{\partial q_x} \rangle_F
+            \\
+            \langle \nabla_{R(x_i)} \bar{f}, \frac{\partial R(x_i)}{\partial q_y} \rangle_F
+            \\
+            \langle \nabla_{R(x_i)} \bar{f}, \frac{\partial R(x_i)}{\partial q_z} \rangle_F
+        \end{bmatrix}
+    \end{equation}
+    with
+    \begin{equation}
+        \grad_{x_i} f = P_{x_i} (\nabla_{x_i} \bar{f}).
+    \end{equation}
+
+
+    \subsection{Rotation-Invariant Formation Control}
+    Agent $i$'s manifold is given by
+    \begin{equation}
+        \mathcal{M}_i = \R{3} \times S^3.
+    \end{equation}
+    Relevant variables for agent $i$:
+    \begin{itemize}
+        \item Decision variable: $x_i = (t_i, q_i) \in (\R{3} \times S^3) \in \mathcal{M}_i$
+        \item Prior position: $\bar{t}_i \in \R{3}$
+        \item Prior orientation: $\bar{R}_i \in SO(3)$
+        \item Relative offset to agent $j$ in local reference frame: $\tilde{t}_{ij}$
+    \end{itemize}
+
+    Objective function:
+    \begin{equation}
+        f(x) = \alpha \sum_{i=1}^N \left( \norm{t_i - \bar{t}_i}_2^2 + \norm{R(q_i) - \bar{R}_i}_F^2 \right) + (1-\alpha) \sum_{(i,j)\in E} \norm{R(q_i)^\top (t_j - t_i) - \tilde{t}_{ij}}_2^2.
+    \end{equation}
+
+    Gradient with respect to $t_i$:
+    \begin{align}
+        f(x) 
+        &= \alpha \sum_{i=1}^N \left( \norm{t_i - \bar{t}_i}_2^2 + \norm{R(q_i) - \bar{R}_i}_F^2 \right) + (1-\alpha) \sum_{(i,j)\in E} \norm{R(q_i)^\top (t_j - t_i) - \tilde{t}_{ij}}_2^2
+        \\ 
+        &= \alpha \sum_{i=1}^N \left( t_i^\top t_i - 2t_i^\top \bar{t}_i + \bar{t}_i^\top \bar{t}_i + \norm{R(q_i) - \bar{R}_i}_F^2 \right) \\
+        &\qquad + (1-\alpha) \sum_{(i,j)\in E} \left( (t_j-t_i)^\top R(q_i) R(q_i)^\top (t_j-t_i) - 2 (t_j-t_i)^\top R(q_i) \tilde{t}_{ij} + \tilde{t}_{ij}^\top \tilde{t}_{ij} \right) 
+        \\ 
+        &= \alpha \sum_{i=1}^N \left( t_i^\top t_i - 2t_i^\top \bar{t}_i + \bar{t}_i^\top \bar{t}_i + \norm{R(q_i) - \bar{R}_i}_F^2 \right) \\
+        &\qquad + (1-\alpha) \sum_{(i,j)\in E} \left( (t_j-t_i)^\top (t_j-t_i) - 2 (t_j-t_i)^\top R(q_i) \tilde{t}_{ij} + \tilde{t}_{ij}^\top \tilde{t}_{ij} \right) 
+        \\ 
+        &= \alpha \sum_{i=1}^N \left( t_i^\top t_i - 2t_i^\top \bar{t}_i + \bar{t}_i^\top \bar{t}_i + \norm{R(q_i) - \bar{R}_i}_F^2 \right) \\
+        &\qquad + (1-\alpha) \sum_{(i,j)\in E} \left( t_j^\top t_j - 2t_i^\top t_j + t_i^\top t_i - 2 (t_j-t_i)^\top R(q_i) \tilde{t}_{ij} + \tilde{t}_{ij}^\top \tilde{t}_{ij} \right) 
+    \end{align}
+    \begin{align}
+        \grad_{t_i} f(x)
+        &= 2 \alpha (t_i - \bar{t}_i) 
+        + 2(1-\alpha) \sum_{j:(i,j)\in E} (t_i - t_j + R(q_i)\tilde{t}_{ij})
+        + 2(1-\alpha) \sum_{j:(j,i)\in E} (t_i - t_j - R(q_j)\tilde{t}_{ji})
+    \end{align}
+
+    Gradient with respect to $q_i$:
+
+    First, define $\bar{f}$ as smooth extension of $f$, where $\mathcal{M}_i$ is extended to $(\R{3} \times \R{4})$.
+    Additionally, define $R_i = R(q_i)$ and define $\tilde{f}$ as $\bar{f}$ with all instances of $R(q_i)$ replaced with $R_i$, given by
+    \begin{equation}
+        \tilde{f}(\{t_i, R_i\}_{i\in\seq{N}}) = \alpha \sum_{i=1}^N \left( \norm{t_i - \bar{t}_i}_2^2 + \norm{R_i - \bar{R}_i}_F^2 \right) + (1-\alpha) \sum_{(i,j)\in E} \norm{R_i^\top (t_j - t_i) - \tilde{t}_{ij}}_2^2.
+    \end{equation}
+    Choose a matrix $V_i\in\R{3\times 3}$, and define $V = \{(\zero{3},\zero{3\times 3})^{i-1},(\zero{},V_i),(\zero{3},\zero{3\times 3})^{N-i}\}$.
+    Then,
+    \begin{align}
+        D\tilde{f}(\{t_i, R_i\}_{i\in\seq{N}})[V]
+        &= \lim_{t\to0} \frac{\tilde{f}((t_1,R_1),\dots,(t_i,R_i+tV_i),\dots,(t_N,R_N))-\tilde{f}(\{t_i, R_i\}_{i\in\seq{N}})}{t}
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \bigg( \alpha \norm{R_i+tV_i-\bar{R}_i}_F^2 - \alpha \norm{R_i-\bar{R}_i}_F^2 \\
+        &\qquad + (1-\alpha) \sum_{j:(i,j)\in E} \left( \norm{(R_i+tV_i)^\top (t_j-t_i) - \tilde{t}_{ij}}_2^2 - \norm{R_i^\top (t_j-t_i) - \tilde{t}_{ij}}_2^2 \right) \bigg)
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \bigg( \alpha \norm{R_i-\bar{R}_i+tV_i}_F^2 - \alpha \norm{R_i-\bar{R}_i}_F^2 \\
+        &\qquad + (1-\alpha) \sum_{j:(i,j)\in E} \left( \norm{R_i^\top (t_j-t_i) - \tilde{t}_{ij} + tV_i^\top (t_j-t_i)}_2^2 - \norm{R_i^\top (t_j-t_i) - \tilde{t}_{ij}}_2^2 \right) \bigg)
+        \\
+        &= \lim_{t\to0} \frac{1}{t} \bigg( \alpha \trace\left( 2tV_i^\top (R_i-\bar{R}_i) + t^2V_i^\top V_i\right) \\
+        &\qquad + (1-\alpha) \sum_{j:(i,j)\in E} \left( 2t(R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top V_i^\top(t_j-t_i) + t^2 (t_j-t_i)^\top V_i V_i^\top (t_j-t_i) \right) \bigg)
+        \\
+        &= \lim_{t\to0} \bigg( \alpha \trace\left( 2V_i^\top (R_i-\bar{R}_i) + tV_i^\top V_i\right) \\
+        &\qquad + (1-\alpha) \sum_{j:(i,j)\in E} \left( 2(R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top V_i^\top(t_j-t_i) + t (t_j-t_i)^\top V_i V_i^\top (t_j-t_i) \right) \bigg)
+        \\
+        &= \alpha \trace\left( 2V_i^\top (R_i-\bar{R}_i)\right) + (1-\alpha) \sum_{j:(i,j)\in E} 2(R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top V_i^\top(t_j-t_i)
+        \\
+        &= \alpha \trace\left( 2V_i^\top (R_i-\bar{R}_i)\right) + (1-\alpha) \trace\left( \sum_{j:(i,j)\in E} 2(R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top V_i^\top(t_j-t_i) \right)
+        \\
+        &= \alpha \trace\left( 2V_i^\top (R_i-\bar{R}_i)\right) + (1-\alpha) \trace\left( \sum_{j:(i,j)\in E} 2 V_i^\top(t_j-t_i) (R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top \right)
+        \\
+        &= \trace\left( 2\alpha V_i^\top (R_i-\bar{R}_i) + (1-\alpha) \sum_{j:(i,j)\in E} 2 V_i^\top(t_j-t_i) (R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top \right)
+        \\
+        &= \trace\left( V_i^\top \left( 2\alpha (R_i-\bar{R}_i) + (1-\alpha) \sum_{j:(i,j)\in E} 2 (t_j-t_i) (R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top \right) \right)
+        \\
+        &= \trace\left( V_i^\top \nabla_{R_i} \tilde{f} \right)
+    \end{align}
+
+    Thus, we know
+    \begin{equation}
+        \nabla_{R_i} \tilde{f}(\{t_i, R_i\}_{i\in\seq{N}})
+        = 2\alpha (R_i-\bar{R}_i) + (1-\alpha) \sum_{j:(i,j)\in E} 2 (t_j-t_i) (R_i^\top(t_j-t_i)-\tilde{t}_{ij})^\top.
+    \end{equation}
+
+    Equivalently, we know
+    \begin{equation}
+        \nabla_{R(q_i)} \bar{f}(x)
+        = 2\alpha (R(q_i)-\bar{R}_i) + (1-\alpha) \sum_{j:(i,j)\in E} 2 (t_j-t_i) (R(q_i)^\top(t_j-t_i)-\tilde{t}_{ij})^\top.
+    \end{equation}
+
+    Finally, we again use chain rule, according to
+    \begin{equation}
+        \nabla_{q_i} \bar{f}(x) = \begin{bmatrix}
+            \langle \nabla_{R(q_i)} \bar{f}, \frac{\partial R(q_i)}{\partial q_{iw}} \rangle_F
+            \\
+            \langle \nabla_{R(q_i)} \bar{f}, \frac{\partial R(q_i)}{\partial q_{ix}} \rangle_F
+            \\
+            \langle \nabla_{R(q_i)} \bar{f}, \frac{\partial R(q_i)}{\partial q_{iy}} \rangle_F
+            \\
+            \langle \nabla_{R(q_i)} \bar{f}, \frac{\partial R(q_i)}{\partial q_{iz}} \rangle_F
+        \end{bmatrix}
+    \end{equation}
+    with
+    \begin{equation}
+        \grad_{q_i} f = P_{q_i} (\nabla_{q_i} \bar{f}).
+    \end{equation}
+
+
+    \subsection{Toy Problem}
+    Goal: Find a problem with manifolds $\mathcal{M}_i$ endowed with Euclidean metric $\langle\cdot,\cdot\rangle$ and a function $f(x)$ such that $\grad f(x)$ is $L$-Lipschitz.
+
+    Manifolds:
+    \begin{itemize}
+        \item $\mathcal{M}_1 = \R{n_1}$, $n_1$-dimensional Euclidean space
+        \item $\mathcal{M}_2 = S^{n_2-1} \subset \R{n_2}$, sphere in $n_2$-dimensional space
+        \item $\mathcal{M}_3$
+    \end{itemize}
+
+
+
+    \subsection{PGO}
+    Let each manifold $\mathcal{M}_i$ be a product manifold given by
+    \begin{equation}
+        \mathcal{M}_i = \R{3} \times S^3.
+    \end{equation}
+    A pose on $\mathcal{M}_i$ is denoted $X_i = (P_i, q_i)$.
+
+    Consider a measurement graph $G = (V,E)$ with vertices $V=\seq{N}$ and edges $E$.
+    If $(i,j) \in E$, then agent $i$ takes a measurement 
+
+
+
+    \newpage
+
+    \bibliographystyle{IEEEtran}
+    \bibliography{references}
+\end{document}
+
+
+
+
+
+
+
+
