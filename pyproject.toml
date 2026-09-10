@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asynch_opt_on_manifolds"
+version = "1.0.0"
+authors = [
+  { name="Adam Pooley", email="pooleya19@gmail.com" },
+]
+description = "A package for simulating asynchronous distributed optimization on manifolds."
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]

@@ -3,8 +3,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 
-from Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
-from RotationUtils import axis_angle_to_rot_mat, quat_to_rot_mat, partial_rot_mat_partial_quat, axis_angle_to_quat
+from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
+from asynch_opt_on_manifolds.Utils.RotationUtils import axis_angle_to_rot_mat, quat_to_rot_mat, partial_rot_mat_partial_quat, axis_angle_to_quat
 
 
 def copy(message):
@@ -155,15 +155,15 @@ def main():
     # Define parameters
     rng_seed = 0
     N = 10
-    B_comm = 200
-    B_compute = 200
-    kmax = 100000
+    B_comm = 1000
+    B_compute = 1000
+    kmax = 50000
     lam = 0.01
     lam_synch = 0.01
     alpha = 0
     graph_edge_probability = 0.8
-    render_iteration_mod = 100
     world_size = 1
+    render_iteration_mod = 100
 
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
@@ -261,7 +261,7 @@ def main():
 
     colors = mpl.colormaps["jet"](np.linspace(0.15, 0.85, N))[:,0:3]
     
-    robot_diameter = 0.5
+    robot_diameter = world_size/20
     robot_shape_arrow_x = np.array([-0.5,-0.3,-0.3,0.1,0.1,0.3,0.1,0.1,-0.3,-0.3,-0.5])
     robot_shape_arrow_y = np.array([0,0,-0.1,-0.1,-0.3,0,0.3,0.1,0.1,0,0])
     robot_shape_thetas = np.linspace(-np.pi,np.pi,20+1)
