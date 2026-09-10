@@ -22,10 +22,12 @@ class EuclideanManifold(Manifold):
 
 class UnitQuaternionManifold(Manifold):
     def exp(self, x, v):
+        x = x/np.linalg.norm(x)
         norm_v = np.linalg.norm(v)
-        return x*np.cos(norm_v) + v/norm_v*np.sin(norm_v)
+        return x*np.cos(norm_v) + v*np.sin(norm_v) / (norm_v if norm_v > 0 else 1)
 
     def proj(self, x, v):
+        x = x/np.linalg.norm(x)
         return (np.eye(4) - x@x.T) @ v
 
 
