@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
-from RotationUtils import axis_angle_to_rot_mat, quat_to_rot_mat, partial_rot_mat_partial_quat
+from ..Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
+from ..RotationUtils import axis_angle_to_rot_mat, quat_to_rot_mat, partial_rot_mat_partial_quat
 
 
 def copy(message):
@@ -149,19 +149,35 @@ class SynchAgent:
                 self.sent_current = False
 
 
-def main():
+def run_sim(parameters=None):
     # Define parameters
-    rng_seed = 0
-    N = 10
-    B_comm = 1000
-    B_compute = 50
-    kmax = 15000
-    lam = 0.0004
-    lam_synch = 0.0004
-    alpha = 0
-    graph_edge_probability = 0.8
+    if parameters is None:
+        rng_seed = 0
+        N = 10
+        B_comm = 1000
+        B_compute = 1000
+        kmax = 50000
+        lam = 0.01
+        lam_synch = 0.01
+        alpha = 0
+        graph_edge_probability = 0.8
+        world_size = 1
+        show_fig = True
+    else:
+        rng_seed = parameters["rng_seed"]
+        N = parameters["N"]
+        B_comm = parameters["B_comm"]
+        B_compute = parameters["B_compute"]
+        kmax = parameters["kmax"]
+        lam = parameters["lam"]
+        lam_synch = parameters["lam_synch"]
+        alpha = parameters["alpha"]
+        graph_edge_probability = parameters["graph_edge_probability"]
+        world_size = parameters["world_size"]
+        show_fig = parameters["show_fig"]
+
     render_iteration_mod = 100
-    world_size = 10
+    
 
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
@@ -250,17 +266,18 @@ def main():
     data_iteration = []
     data_f = []
     data_f_synch = []
-    ax1_y_min = 1e10
-    ax1_y_max = 0
+    if show_fig:
+        ax1_y_min = 1e10
+        ax1_y_max = 0
 
-    fig, (ax1) = plt.subplots(1, 1, figsize=(8,5))
+        fig, (ax1) = plt.subplots(1, 1, figsize=(8,5))
 
-    plot_f = ax1.plot([], [], "-r", label="f (asynch)")[0]
-    plot_f_synch = ax1.plot([], [], "-b", label="f (synch)")[0]
-    ax1.set(xlabel="Iteration", ylabel="Objective Function", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
-    ax1.legend(loc="lower left")
+        plot_f = ax1.plot([], [], "-r", label="f (asynch)")[0]
+        plot_f_synch = ax1.plot([], [], "-b", label="f (synch)")[0]
+        ax1.set(xlabel="Iteration", ylabel="Objective Function", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
+        ax1.legend(loc="lower left")
 
-    plt.show(block=False)
+        plt.show(block=False)
 
     # Init map for tracking x_synch
     x_synch_map = {}
@@ -351,25 +368,30 @@ def main():
         data_iteration.append(k)
         data_f.append(f)
         data_f_synch.append(f_synch)
-        ax1_y_min = min(ax1_y_min, min(f, f_synch))
-        ax1_y_max = max(ax1_y_max, max(f, f_synch))
+        if show_fig:
+            ax1_y_min = min(ax1_y_min, min(f, f_synch))
+            ax1_y_max = max(ax1_y_max, max(f, f_synch))
 
-        if k % render_iteration_mod == 0 and ax1_y_min < ax1_y_max:
-            print("Iteration %4g: f = %.4E" % (k, f))
-            print("\tSynch Iteration %g: f_synch = %.4E" % (iteration_synch, f_synch))
-            print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
-            print("\t|qi|: %s" % (str([np.linalg.norm(x[i][1]).round(2).item() for i in range(N)])))
+            if k % render_iteration_mod == 0 and ax1_y_min < ax1_y_max:
+                print("Iteration %4g: f = %.4E" % (k, f))
+                print("\tSynch Iteration %g: f_synch = %.4E" % (iteration_synch, f_synch))
+                # print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
+                # print("\t|qi|: %s" % (str([np.linalg.norm(x[i][1]).round(2).item() for i in range(N)])))
 
-            plot_f.set(xdata=data_iteration, ydata=data_f)
-            plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)
-            ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
+                plot_f.set(xdata=data_iteration, ydata=data_f)
+                plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)
+                ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
 
-            fig.canvas.draw()
-            fig.canvas.flush_events()
+                fig.canvas.draw()
+                fig.canvas.flush_events()
 
-    print("Finished simulation. Close figure to quit.")
-    plt.show(block=True)
+    if show_fig:
+        print("Finished simulation. Close figure to quit.")
+        plt.show(block=True)
+
+    output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
+    return output_data
 
 
 if __name__ == "__main__":
-    main()
+    run_sim()

@@ -155,15 +155,15 @@ def main():
     # Define parameters
     rng_seed = 0
     N = 10
-    B_comm = 200
-    B_compute = 200
-    kmax = 100000
-    lam = 0.0005
-    lam_synch = 0.0005
+    B_comm = 100
+    B_compute = 100
+    kmax = 50000
+    lam = 0.005
+    lam_synch = 0.005
     alpha = 0
     graph_edge_probability = 0.8
     render_iteration_mod = 100
-    world_size = 10
+    world_size = 1
 
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
@@ -261,7 +261,7 @@ def main():
 
     colors = mpl.colormaps["jet"](np.linspace(0.15, 0.85, N))[:,0:3]
     
-    robot_diameter = 0.5
+    robot_diameter = world_size/20
     robot_shape_arrow_x = np.array([-0.5,-0.3,-0.3,0.1,0.1,0.3,0.1,0.1,-0.3,-0.3,-0.5])
     robot_shape_arrow_y = np.array([0,0,-0.1,-0.1,-0.3,0,0.3,0.1,0.1,0,0])
     robot_shape_thetas = np.linspace(-np.pi,np.pi,20+1)
@@ -392,8 +392,8 @@ def main():
         if k % render_iteration_mod == 0 and ax1_y_min < ax1_y_max:
             print("Iteration %4g: f = %.4E" % (k, f))
             print("\tSynch Iteration %g: f_synch = %.4E" % (iteration_synch, f_synch))
-            print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
-            print("\t|qi|: %s" % (str([np.linalg.norm(x[i][0]).round(2).item() for i in range(N)])))
+            # print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
+            # print("\t|qi|: %s" % (str([np.linalg.norm(x[i][0]).round(2).item() for i in range(N)])))
 
             plot_f.set(xdata=data_iteration, ydata=data_f)
             plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)
