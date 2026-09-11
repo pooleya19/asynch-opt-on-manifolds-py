@@ -15,6 +15,8 @@ def parameter_iterable_generator(fixed_parameter_dict, varying_parameter_dict):
     num_parameter_combinations = int(np.prod(varying_parameter_sizes))
     for i in range(num_parameter_combinations):
         output_parameter_dict = fixed_parameter_dict.copy()
+        output_parameter_dict["sim_index"] = i
+        output_parameter_dict["num_sims"] = num_parameter_combinations
         for j in range(num_varying_parameters):
             varying_parameter_name = varying_parameter_names[j]
             if j == 0:
@@ -26,11 +28,14 @@ def parameter_iterable_generator(fixed_parameter_dict, varying_parameter_dict):
 
 
 def main():
+    # Experiment 1: N=10, B=[1,5,10,50,100,500,1000]
+    # Experiment 2: B=500, N=[5,10,20,50,100]
+    # Experiment 3: N=10, B_comm=1000, B_comp=[1,5,10,50,100,500,1000]
     fixed_parameter_dict = {              "rng_seed":     0,
                                               "kmax":  1000,
                                                "lam":  0.01,
                                          "lam_synch":  0.01,
-                                             "alpha":   0.1,
+                                             "alpha":  0.01,
                             "graph_edge_probability":   0.8,
                                         "world_size":     1,
                                           "show_fig": False}
