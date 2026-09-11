@@ -191,10 +191,15 @@ def run_sim(parameters=None):
                       "num_sims": num_sims,
                       }
     else:
+        if "B_comm" not in parameters:
+            parameters["B_comm"] = parameters["B"]
+        if "B_comp" not in parameters:
+            parameters["B_comp"] = parameters["B"]
+            
         rng_seed = parameters["rng_seed"]
         N = parameters["N"]
-        B_comm = parameters["B_comm"] if "B_comm" in parameters else parameters["B"]
-        B_comp = parameters["B_comp"] if "B_comp" in parameters else parameters["B"]
+        B_comm = parameters["B_comm"]
+        B_comp = parameters["B_comp"]
         kmax = parameters["kmax"]
         lam = parameters["lam"]
         lam_synch = parameters["lam_synch"]
@@ -291,8 +296,8 @@ def run_sim(parameters=None):
     iteration_to_recv = []
     for i in range(N):
         iteration_to_comp.append(rng.integers(low=1,high=B_comp+1))
-        iteration_to_send.append(rng.integers(low=1,high=B_comm//2+1))
-        iteration_to_recv.append(rng.integers(low=1,high=B_comm//2+1))
+        iteration_to_send.append(rng.integers(low=1,high=(B_comm+1)//2))
+        iteration_to_recv.append(rng.integers(low=1,high=(B_comm+1)//2))
 
     # Init plot data
     data_iteration = []
@@ -319,7 +324,7 @@ def run_sim(parameters=None):
         # Send
         for i in range(N):
             if iteration_to_send[i] == k:
-                iteration_to_send[i] = k + rng.integers(low=1,high=B_comm//2+1)
+                iteration_to_send[i] = k + rng.integers(low=1,high=(B_comm+1)//2)
                 # Let asynch agents send
                 mailbox_outgoing[i] = copy(agents[i].x[i])
                 # Let synch agents send
@@ -333,7 +338,7 @@ def run_sim(parameters=None):
         # Recieve
         for i in range(N):
             if iteration_to_recv[i] == k:
-                iteration_to_recv[i] = k + rng.integers(low=1,high=B_comm//2+1)
+                iteration_to_recv[i] = k + rng.integers(low=1,high=(B_comm+1)//2)
                 # Let asynch agents receive
                 for j in range(N):
                     if i != j:
@@ -426,8 +431,11 @@ def run_sim(parameters=None):
 
     if save_output:
         file_path = os.path.join(save_directory_path, save_file_name)
-        for key in list(parameters.keys()):
-            file_path = file_path.replace(key, parameters[key])
+        keys_descending_length = list(parameters.keys())
+        keys_descending_length.sort(key=len, reverse=True)
+        for i in range(len(keys_descending_length)):
+            key = keys_descending_length[i]
+            file_path = file_path.replace("<"+key+">", str(parameters[key]))
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
         output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}

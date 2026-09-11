@@ -1,6 +1,7 @@
 import numpy as np
 import multiprocessing
 import os
+from pathlib import Path
 
 from asynch_opt_on_manifolds.RotationInvariantFormationControl.RotationInvariantFormationControl import run_sim
 
@@ -33,7 +34,7 @@ def parameter_set_generator(fixed_parameter_dict, varying_parameter_dict):
 
 
 def main():
-    save_directory_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    save_directory_path = str(Path(__file__).parents[3].joinpath("data").resolve())
     save_file_name = "sim_N<N>_Bcomm<B_comm>_Bcomp<B_comp>.json"
     fixed_parameter_dict = {              "rng_seed":     0,
                                               "kmax":  1000,
@@ -44,14 +45,23 @@ def main():
                                         "world_size":     1,
                                           "show_fig": False,
                                        "save_output":  True,
-                               "save_directory_path": save_directory_path,
-                                    "save_file_name":      save_file_name,}
+                               "save_directory_path": save_directory_path}
 
     with multiprocessing.Pool() as pool:
+        # Test: N=10, B=[100,500,1000]
+        # print("========== Test 1 ==========")
+        # varying_parameter_dict = {"N":[10],
+        #                           "B":[100,500,1000],
+        #                           "save_file_name": ["exp1/sim_N<N>_B<B_comm>.json"]}
+        # parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
+        # pool.map(run_sim, parameter_set)
+        # print()
+
         # Experiment 1: N=10, B=[1,5,10,50,100,500,1000]
         print("========== Experiment 1 ==========")
         varying_parameter_dict = {"N":[10],
-                                  "B":[1,5,10,50,100,500,1000]}
+                                  "B":[1,5,10,50,100,500,1000],
+                                  "save_file_name": ["exp1/sim_N<N>_B<B_comm>.json"]}
         parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
         pool.map(run_sim, parameter_set)
         print()
@@ -59,7 +69,8 @@ def main():
         # Experiment 2: B=500, N=[5,10,20,50,100]
         print("========== Experiment 2 ==========")
         varying_parameter_dict = {"N":[5,10,20,50,100],
-                                  "B":[500]}
+                                  "B":[500],
+                                  "save_file_name": ["exp2/sim_N<N>_B<B_comm>.json"]}
         parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
         pool.map(run_sim, parameter_set)
         print()
@@ -68,7 +79,8 @@ def main():
         print("========== Experiment 3 ==========")
         varying_parameter_dict = {     "N":[10],
                                   "B_comm":[1000],
-                                  "B_comp":[1,5,10,50,100,500,1000]}
+                                  "B_comp":[1,5,10,50,100,500,1000],
+                                  "save_file_name": ["exp3/sim_N<N>_Bcomm<B_comm>_Bcomp<B_comp>.json"]}
         parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
         pool.map(run_sim, parameter_set)
         print()
