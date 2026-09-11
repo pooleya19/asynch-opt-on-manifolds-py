@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import json
+import time
 
 from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.RotationUtils import axis_angle_to_rot_mat, quat_to_rot_mat, partial_rot_mat_partial_quat
@@ -150,19 +152,24 @@ class SynchAgent:
 
 
 def run_sim(parameters=None):
+    time_start = time.time()
+
     # Define parameters
     if parameters is None:
         rng_seed = 0
         N = 10
-        B_comm = 1000
-        B_compute = 1000
+        B_comm = 100
+        B_compute = 100
         kmax = 50000
         lam = 0.01
         lam_synch = 0.01
-        alpha = 0
+        alpha = 0.01
         graph_edge_probability = 0.8
         world_size = 1
         show_fig = True
+        save_path = None
+        sim_index = 1
+        num_sims = 1
     else:
         rng_seed = parameters["rng_seed"]
         N = parameters["N"]
@@ -175,6 +182,9 @@ def run_sim(parameters=None):
         graph_edge_probability = parameters["graph_edge_probability"]
         world_size = parameters["world_size"]
         show_fig = parameters["show_fig"]
+        save_path = parameters["save_path"]
+        sim_index = parameters["sim_index"]
+        num_sims = parameters["num_sims"]
 
     render_iteration_mod = 100
     
@@ -385,11 +395,18 @@ def run_sim(parameters=None):
                 fig.canvas.draw()
                 fig.canvas.flush_events()
 
+    time_end = time.time()
+    time_elapsed = time_end - time_start
+
     if show_fig:
         print("Finished simulation. Close figure to quit.")
         plt.show(block=True)
 
-    output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
+    if save_path is not None:
+        output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
+        with open(save_path, "w") as file:
+            json.dump(output_data, file)
+        print("Finished sim %g/%g in %.2f seconds." % (sim_index, num_sims, time_elapsed))
     return output_data
 
 
