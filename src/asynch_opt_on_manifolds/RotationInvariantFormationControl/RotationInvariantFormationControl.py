@@ -171,8 +171,6 @@ def run_sim(parameters=None):
         save_output = False
         save_directory_path = None
         save_file_name = None
-        sim_index = 1
-        num_sims = 1
         parameters = {"rng_seed": rng_seed,
                       "N": N,
                       "B_comm": B_comm,
@@ -187,8 +185,6 @@ def run_sim(parameters=None):
                       "save_output": save_output,
                       "save_directory_path": save_directory_path,
                       "save_file_name": save_file_name,
-                      "sim_index": sim_index,
-                      "num_sims": num_sims,
                       }
     else:
         if "B_comm" not in parameters:
@@ -210,8 +206,6 @@ def run_sim(parameters=None):
         save_output = parameters["save_output"]
         save_directory_path = parameters["save_directory_path"]
         save_file_name = parameters["save_file_name"]
-        sim_index = parameters["sim_index"]
-        num_sims = parameters["num_sims"]
 
     render_iteration_mod = 100
     
@@ -441,8 +435,7 @@ def run_sim(parameters=None):
         output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
         with open(file_path, "w") as file:
             json.dump(output_data, file)
-        print("Finished sim %g/%g in %.2f seconds." % (sim_index, num_sims, time_elapsed))
-
+    return time_elapsed
 
 if __name__ == "__main__":
     run_sim()
