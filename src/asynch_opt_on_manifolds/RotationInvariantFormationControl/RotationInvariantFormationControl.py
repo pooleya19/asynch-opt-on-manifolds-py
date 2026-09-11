@@ -295,9 +295,9 @@ def run_sim(parameters=None):
     iteration_to_send = []
     iteration_to_recv = []
     for i in range(N):
-        iteration_to_comp.append(rng.integers(low=1,high=B_comp+1))
-        iteration_to_send.append(rng.integers(low=1,high=(B_comm+1)//2))
-        iteration_to_recv.append(rng.integers(low=1,high=(B_comm+1)//2))
+        iteration_to_comp.append(rng.integers(low=1,high=B_comp, endpoint=True))
+        iteration_to_send.append(rng.integers(low=1,high=(B_comm+1)//2, endpoint=True))
+        iteration_to_recv.append(rng.integers(low=1,high=(B_comm+1)//2, endpoint=True))
 
     # Init plot data
     data_iteration = []
@@ -324,7 +324,7 @@ def run_sim(parameters=None):
         # Send
         for i in range(N):
             if iteration_to_send[i] == k:
-                iteration_to_send[i] = k + rng.integers(low=1,high=(B_comm+1)//2)
+                iteration_to_send[i] = k + rng.integers(low=1,high=(B_comm+1)//2, endpoint=True)
                 # Let asynch agents send
                 mailbox_outgoing[i] = copy(agents[i].x[i])
                 # Let synch agents send
@@ -338,7 +338,7 @@ def run_sim(parameters=None):
         # Recieve
         for i in range(N):
             if iteration_to_recv[i] == k:
-                iteration_to_recv[i] = k + rng.integers(low=1,high=(B_comm+1)//2)
+                iteration_to_recv[i] = k + rng.integers(low=1,high=(B_comm+1)//2, endpoint=True)
                 # Let asynch agents receive
                 for j in range(N):
                     if i != j:
@@ -361,7 +361,7 @@ def run_sim(parameters=None):
         # Compute
         for i in range(N):
             if iteration_to_comp[i] == k:
-                iteration_to_comp[i] = k + rng.integers(low=1,high=B_comp+1)
+                iteration_to_comp[i] = k + rng.integers(low=1,high=B_comp, endpoint=True)
                 agents[i].compute()
                 agents_synch[i].compute()
 
