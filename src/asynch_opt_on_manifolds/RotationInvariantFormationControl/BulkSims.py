@@ -1,10 +1,13 @@
 import numpy as np
 import multiprocessing
+import os
 
 from asynch_opt_on_manifolds.RotationInvariantFormationControl.RotationInvariantFormationControl import run_sim
 
 
-def parameter_iterable_generator(fixed_parameter_dict, varying_parameter_dict):
+def parameter_set_generator(fixed_parameter_dict, varying_parameter_dict):
+    parameter_set = []
+
     varying_parameter_names = list(varying_parameter_dict.keys())
     num_varying_parameters = len(varying_parameter_names)
     varying_parameter_sizes = np.zeros(num_varying_parameters)
@@ -24,13 +27,14 @@ def parameter_iterable_generator(fixed_parameter_dict, varying_parameter_dict):
             else:
                 varying_parameter_index = (i // varying_parameter_sizes_cumprod[j-1]) % varying_parameter_sizes[j]
             output_parameter_dict[varying_parameter_name] = varying_parameter_dict[varying_parameter_name][int(varying_parameter_index)]
-        yield output_parameter_dict
+        parameter_set.append(output_parameter_dict)
+
+    return parameter_set
 
 
 def main():
-    # Experiment 1: N=10, B=[1,5,10,50,100,500,1000]
-    # Experiment 2: B=500, N=[5,10,20,50,100]
-    # Experiment 3: N=10, B_comm=1000, B_comp=[1,5,10,50,100,500,1000]
+    save_directory_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    save_file_name = "sim_N<N>_Bcomm<B_comm>_Bcomp<B_comp>.json"
     fixed_parameter_dict = {              "rng_seed":     0,
                                               "kmax":  1000,
                                                "lam":  0.01,
@@ -38,24 +42,36 @@ def main():
                                              "alpha":  0.01,
                             "graph_edge_probability":   0.8,
                                         "world_size":     1,
-                                          "show_fig": False}
-    # varying_parameter_dict = {"N":[5,10,20,50,100],
-    #                           "B":[1,5,10,50,100,500]}
-    varying_parameter_dict = {"N":[5,10],
-                              "B":[100,500]}
+                                          "show_fig": False,
+                                       "save_output":  True,
+                               "save_directory_path": save_directory_path,
+                                    "save_file_name":      save_file_name,}
 
-    parameter_iterable = parameter_iterable_generator(fixed_parameter_dict, varying_parameter_dict)
-
-    results = None
     with multiprocessing.Pool() as pool:
-        results = pool.imap(run_sim, parameter_iterable)
+        # Experiment 1: N=10, B=[1,5,10,50,100,500,1000]
+        print("========== Experiment 1 ==========")
+        varying_parameter_dict = {"N":[10],
+                                  "B":[1,5,10,50,100,500,1000]}
+        parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
+        pool.map(run_sim, parameter_set)
+        print()
 
-    if results is None:
-        raise RuntimeError("Pool terminated, but no results were returned.")
-    else:
-        for result in results:
-            print("awesome")
-
+        # Experiment 2: B=500, N=[5,10,20,50,100]
+        print("========== Experiment 2 ==========")
+        varying_parameter_dict = {"N":[5,10,20,50,100],
+                                  "B":[500]}
+        parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
+        pool.map(run_sim, parameter_set)
+        print()
+        
+        # Experiment 3: N=10, B_comm=1000, B_comp=[1,5,10,50,100,500,1000]
+        print("========== Experiment 3 ==========")
+        varying_parameter_dict = {     "N":[10],
+                                  "B_comm":[1000],
+                                  "B_comp":[1,5,10,50,100,500,1000]}
+        parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
+        pool.map(run_sim, parameter_set)
+        print()
 
 if __name__ == "__main__":
     main()

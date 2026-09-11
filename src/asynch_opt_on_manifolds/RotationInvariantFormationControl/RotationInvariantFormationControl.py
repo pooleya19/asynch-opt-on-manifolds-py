@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import time
+import os
 
 from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.RotationUtils import axis_angle_to_rot_mat, quat_to_rot_mat, partial_rot_mat_partial_quat
@@ -159,7 +160,7 @@ def run_sim(parameters=None):
         rng_seed = 0
         N = 10
         B_comm = 100
-        B_compute = 100
+        B_comp = 100
         kmax = 50000
         lam = 0.01
         lam_synch = 0.01
@@ -167,14 +168,33 @@ def run_sim(parameters=None):
         graph_edge_probability = 0.8
         world_size = 1
         show_fig = True
-        save_path = None
+        save_output = False
+        save_directory_path = None
+        save_file_name = None
         sim_index = 1
         num_sims = 1
+        parameters = {"rng_seed": rng_seed,
+                      "N": N,
+                      "B_comm": B_comm,
+                      "B_comp": B_comp,
+                      "kmax": kmax,
+                      "lam": lam,
+                      "lam_synch": lam_synch,
+                      "alpha": alpha,
+                      "graph_edge_probability": graph_edge_probability,
+                      "world_size": world_size,
+                      "show_fig": show_fig,
+                      "save_output": save_output,
+                      "save_directory_path": save_directory_path,
+                      "save_file_name": save_file_name,
+                      "sim_index": sim_index,
+                      "num_sims": num_sims,
+                      }
     else:
         rng_seed = parameters["rng_seed"]
         N = parameters["N"]
-        B_comm = parameters["B_comm"]
-        B_compute = parameters["B_compute"]
+        B_comm = parameters["B_comm"] if "B_comm" in parameters else parameters["B"]
+        B_comp = parameters["B_comp"] if "B_comp" in parameters else parameters["B"]
         kmax = parameters["kmax"]
         lam = parameters["lam"]
         lam_synch = parameters["lam_synch"]
@@ -182,7 +202,9 @@ def run_sim(parameters=None):
         graph_edge_probability = parameters["graph_edge_probability"]
         world_size = parameters["world_size"]
         show_fig = parameters["show_fig"]
-        save_path = parameters["save_path"]
+        save_output = parameters["save_output"]
+        save_directory_path = parameters["save_directory_path"]
+        save_file_name = parameters["save_file_name"]
         sim_index = parameters["sim_index"]
         num_sims = parameters["num_sims"]
 
@@ -268,7 +290,7 @@ def run_sim(parameters=None):
     iteration_to_send = []
     iteration_to_recv = []
     for i in range(N):
-        iteration_to_comp.append(rng.integers(low=1,high=B_compute+1))
+        iteration_to_comp.append(rng.integers(low=1,high=B_comp+1))
         iteration_to_send.append(rng.integers(low=1,high=B_comm//2+1))
         iteration_to_recv.append(rng.integers(low=1,high=B_comm//2+1))
 
@@ -334,7 +356,7 @@ def run_sim(parameters=None):
         # Compute
         for i in range(N):
             if iteration_to_comp[i] == k:
-                iteration_to_comp[i] = k + rng.integers(low=1,high=B_compute+1)
+                iteration_to_comp[i] = k + rng.integers(low=1,high=B_comp+1)
                 agents[i].compute()
                 agents_synch[i].compute()
 
@@ -402,12 +424,16 @@ def run_sim(parameters=None):
         print("Finished simulation. Close figure to quit.")
         plt.show(block=True)
 
-    if save_path is not None:
+    if save_output:
+        file_path = os.path.join(save_directory_path, save_file_name)
+        for key in list(parameters.keys()):
+            file_path = file_path.replace(key, parameters[key])
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
         output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
-        with open(save_path, "w") as file:
+        with open(file_path, "w") as file:
             json.dump(output_data, file)
         print("Finished sim %g/%g in %.2f seconds." % (sim_index, num_sims, time_elapsed))
-    return output_data
 
 
 if __name__ == "__main__":
