@@ -20,6 +20,28 @@ class EuclideanManifold(Manifold):
         return v
 
 
+class ObliqueManifold(Manifold):
+    def exp(self, x, v):
+        x = x/np.linalg.norm(x,axis=0)
+        norm_v = np.linalg.norm(v,axis=0)
+        return x*np.cos(norm_v) + v*np.sinc(norm_v / np.pi)
+
+    def proj(self, x, v):
+        x = x/np.linalg.norm(x,axis=0)
+        return v - x * np.sum(x*v, axis=0, keepdims=True)
+
+
+class SphereManifold(Manifold):
+    def exp(self, x, v):
+        x = x/np.linalg.norm(x)
+        norm_v = np.linalg.norm(v)
+        return x*np.cos(norm_v) + v*np.sinc(norm_v / np.pi)
+
+    def proj(self, x, v):
+        x = x/np.linalg.norm(x)
+        return v - x * (x.T@v).item()
+
+
 class UnitQuaternionManifold(Manifold):
     def exp(self, x, v):
         x = x/np.linalg.norm(x)

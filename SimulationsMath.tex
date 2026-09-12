@@ -540,29 +540,174 @@ with
 \end{equation}
 
 
-\subsection{Toy Problem}
-Goal: Find a problem with manifolds $\mathcal{M}_i$ endowed with Euclidean metric $\langle\cdot,\cdot\rangle$ and a function $f(x)$ such that $\grad f(x)$ is $L$-Lipschitz.
-
-Manifolds:
+\subsection{Dictionary Learning}
+Setup:
 \begin{itemize}
-    \item $\mathcal{M}_1 = \R{n_1}$, $n_1$-dimensional Euclidean space
-    \item $\mathcal{M}_2 = S^{n_2-1} \subset \R{n_2}$, sphere in $n_2$-dimensional space
-    \item $\mathcal{M}_3$
+    \item Let $y_1,\dots,y_k \in \R{d}$ be a collection of $k$ images of dimension $d$
+    \item Let $b_1,\dots,b_n \in \R{d}$ be a dictionary of $n$ atoms of dimension $d$
+    \item Let $Y = \begin{bmatrix}
+        y_1 & \cdots & y_k
+    \end{bmatrix} \in \R{d\times k}$ be the ``data matrix''
+    \item Let $D = \begin{bmatrix}
+        b_1 & \cdots & b_n
+    \end{bmatrix} \in\R{d\times n}$ be the ``dictionary matrix''
+    \item We normalize $b_i$ such that $\norm{b_i}_2^2 = 1$, meaning $b_i\in S^{d-1}$ and $D\in(S^{d-1})^n$
+    \item Let $C\in\R{n\times k}$ be the ``coefficient matrix''
+    \item We seek to find $D\in(S^{d-1})^n$ and $C\in\R{n\times k}$ such that $Y\approx DC$ and $C$ is sparse 
+    \item For sparsity of $C$, we allow $n > d$
+    \item For dictionary compression, we want $n << k$
 \end{itemize}
 
-
-
-\subsection{PGO}
-Let each manifold $\mathcal{M}_i$ be a product manifold given by
+Discontinuous problem:
 \begin{equation}
-    \mathcal{M}_i = \R{3} \times S^3.
+    \min_{D\in(S^{d-1})^n, C\in\R{n\times k}} f(D,C) 
+    = \norm{Y-DC}_F^2 + \lambda \norm{C}_0
 \end{equation}
-A pose on $\mathcal{M}_i$ is denoted $X_i = (P_i, q_i)$.
 
-Consider a measurement graph $G = (V,E)$ with vertices $V=\seq{N}$ and edges $E$.
-If $(i,j) \in E$, then agent $i$ takes a measurement 
+Continuous, non-smooth problem:
+\begin{align}
+    \min_{D\in(S^{d-1})^n, C\in\R{n\times k}} f(D,C)
+    &= \norm{Y-DC}_F^2 + \lambda \norm{C}_1
+    \\
+    &= \norm{Y-DC}_F^2 + \lambda \sum_{j=1}^n \sum_{\ell=1}^k |C_{j\ell}|
+\end{align}
 
+Smooth problem:
+\begin{align}
+    \min_{D\in(S^{d-1})^n, C\in\R{n\times k}} f(D,C) 
+    = \norm{Y-DC}_F^2 + \lambda \sum_{j=1}^n \sum_{\ell=1}^k \sqrt{C_{j\ell}^2 + \varepsilon}
+\end{align}
 
+We split $n$ into $N$ partitions $n_1,\dots,n_N$ such that $\sum_{i=1}^N n_i = n$.
+Agent $i$'s decision variables will be 
+$D_i\in (S^{d-1})^{n_i}$ and $C_i\in\R{n_i\times k}$ such that
+\begin{equation}
+    D = \begin{bmatrix}
+        D_1 & \cdots & D_N
+    \end{bmatrix},
+    \qquad\text{and}\qquad
+    C = \begin{bmatrix}
+        C_1 \\ \vdots \\ C_N
+    \end{bmatrix}.
+\end{equation}
+Agent $i$'s manifold is the product manifold
+\begin{equation}
+    \mathcal{M}_i = (S^{d-1})^{n_i} \times \R{n_i\times k}.
+\end{equation}
+
+The problem can be restated as
+\begin{align}
+    \min_{D_i\in(S^{d-1})^{n_i}, C_i\in\R{n_i\times k}} f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= \norm{Y - \sum_{i=1}^N D_i C_i}_F^2 + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+\end{align}
+
+Let $D_{ij}\in S^{d-1}$ be the \superth{j}-column of $D_i$ and let $C_{ij}\in\R{1\times k}$ be the \superth{j}-row of $C_i$, such that
+\begin{equation}
+    D_i=\begin{bmatrix}
+        D_{i1} & \cdots & D_{in_i}
+    \end{bmatrix},
+\qquad\text{and}\qquad
+    C_i = \begin{bmatrix}
+        C_{i1} \\ \vdots \\ C_{in_i}
+    \end{bmatrix}.
+\end{equation}
+
+The objective function can be restated as
+\begin{align}
+    f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= \norm{Y - \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij}}_F^2 + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+\end{align}
+
+Gradient with respect to $D_{IJ}$ for $I\in\seq{N}$ and $J\in\seq{n_I}$:
+
+Objective
+\begin{align}
+    f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= \norm{Y - \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij}}_F^2 + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left(\left(Y - \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij}\right)^\top\left(Y - \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij}\right)\right) + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y - 2Y^\top \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij} + \left(\sum_{i=1}^N \sum_{j=1}^{n_i} C_{ij}^\top D_{ij}^\top \right) \left(\sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij}\right) \right) \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y \right)
+    - 2\trace\left( Y^\top \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij} \right)
+    + \trace\left( \left(\sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} C_{i_1j_1}^\top D_{i_1j_1}^\top \right) \left(\sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_2j_2} C_{i_2j_2}\right) \right) \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y \right)
+    - 2\trace\left( \sum_{i=1}^N \sum_{j=1}^{n_i} Y^\top D_{ij} C_{ij} \right)
+    + \trace\left( \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} C_{i_1j_1}^\top D_{i_1j_1}^\top D_{i_2j_2} C_{i_2j_2} \right) \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y \right)
+    - 2\trace\left( \sum_{i=1}^N \sum_{j=1}^{n_i} C_{ij} Y^\top D_{ij} \right)
+    + \trace\left( \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_1j_1}^\top D_{i_2j_2} C_{i_2j_2} C_{i_1j_1}^\top \right) \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y \right)
+    - 2\trace\left( \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij}^\top Y C_{ij}^\top \right)
+    + \trace\left( \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_1j_1}^\top D_{i_2j_2} C_{i_2j_2} C_{i_1j_1}^\top \right) \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y \right)
+    - 2 \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij}^\top Y C_{ij}^\top
+    + \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_1j_1}^\top D_{i_2j_2} C_{i_2j_2} C_{i_1j_1}^\top \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+\end{align}
+
+Euclidean Gradient:
+\begin{align}
+    \nabla_{D_{IJ}} f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= -2 Y C_{IJ}^\top
+    + \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_2j_2} C_{i_2j_2} C_{IJ}^\top
+    + \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} D_{i_1j_1} C_{IJ} C_{i_1j_1}^\top
+    \\
+    &= -2 Y C_{IJ}^\top
+    + \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_2j_2} C_{i_2j_2} C_{IJ}^\top
+    + \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} D_{i_1j_1} C_{i_1j_1} C_{IJ}^\top
+    \\
+    &= -2 Y C_{IJ}^\top
+    + 2 \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij} C_{ij} C_{IJ}^\top
+    \\
+    &= -2 Y C_{IJ}^\top
+    + 2 DC C_{IJ}^\top
+    \\
+    &= -2 (Y - DC) C_{IJ}^\top
+    \\
+    \nabla_{D_I} f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= -2 (Y - DC) C_{I}^\top
+\end{align}
+
+Gradient with respect to $(C_I)_{JL}$ for $I\in\seq{N}$, $J\in\seq{n_I}$, and $L\in\seq{k}$:
+
+Objective:
+\begin{align}
+    f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= \trace\left( Y^\top Y \right)
+    - 2 \sum_{i=1}^N \sum_{j=1}^{n_i} D_{ij}^\top Y C_{ij}^\top
+    + \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} D_{i_1j_1}^\top D_{i_2j_2} C_{i_2j_2} C_{i_1j_1}^\top \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+    \\
+    &= \trace\left( Y^\top Y \right)
+    - 2 \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k (D_{ij}^\top Y)_{1\ell} (C_i)_{j\ell}
+    + \sum_{i_1=1}^N \sum_{j_1=1}^{n_{i_1}} \sum_{i_2=1}^N \sum_{j_2=1}^{n_{i_2}} \sum_{\ell=1}^k D_{i_1j_1}^\top D_{i_2j_2} (C_{i_2})_{j_2\ell} (C_{i_1})_{j_1\ell} \\
+    &\qquad + \lambda \sum_{i=1}^N \sum_{j=1}^{n_i} \sum_{\ell=1}^k \sqrt{(C_i)_{j\ell}^2 + \varepsilon}
+\end{align}
+
+Gradient:
+\begin{align}
+    \nabla_{(C_I)_{JL}} f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= -2 (D_{IJ}^\top Y)_{1L} + 2\sum_{i=1}^N \sum_{j=1}^{n_i} D_{IJ}^\top D_{ij} (C_i)_{jL}
+    + \lambda \frac{(C_I)_{JL}}{\sqrt{(C_I)_{JL}^2 + \varepsilon}}
+    \\
+    &= -2 \left( D_{IJ}^\top (Y - DC) \right)_{1L} 
+    + \lambda \frac{(C_I)_{JL}}{\sqrt{(C_I)_{JL}^2 + \varepsilon}}
+    \\
+    \nabla_{C_I} f\left(\{(D_i,C_i)\}_{i\in\seq{N}}\right)
+    &= -2 D_I^\top (Y - DC) + \lambda C_I \oslash \sqrt{C_I \circ C_I + \mathbf{1}^{n_I\times k} \varepsilon},
+\end{align}
+where $\oslash$, $\circ$, and $\sqrt{\cdot}$ respectively denote the element-wise division, multiplication, and square root operators.
 
 \newpage
 
@@ -570,11 +715,3 @@ If $(i,j) \in E$, then agent $i$ takes a measurement
 \bibliography{references}
 
 \end{document}
-
-
-
-
-
-
-
-
