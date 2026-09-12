@@ -33,10 +33,9 @@ def parameter_set_generator(fixed_parameter_dict, varying_parameter_dict):
 
 def main():
     save_directory_path = str(Path(__file__).parents[3].joinpath("data").resolve())
-    fixed_parameter_dict = {              "rng_seed":     0,
-                                              "kmax":  10000,
-                                               "lam":  0.01,
-                                         "lam_synch":  0.01,
+    fixed_parameter_dict = {                  "kmax":  10000,
+                                               "lam":  0.001,
+                                         "lam_synch":  0.001,
                                              "alpha":  0.01,
                             "graph_edge_probability":   0.8,
                                         "world_size":     1,
@@ -45,27 +44,21 @@ def main():
                                "save_directory_path": save_directory_path}
 
     with multiprocessing.Pool() as pool:
-        # Test Experiment: N=10, B=[100,500,1000]
-        # varying_parameter_dict = {"N":[10],
-        #                           "B":[100,500,1000],
-        #                           "save_file_name": ["exp1/sim_N<N>_B<B_comm>.json"]}
-        # parameter_set = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict)
-
-        # Experiment 1: N=10, B=[1,5,10,50,100,500,1000]
+        # Experiment 1: Vary B
         varying_parameter_dict1 = {"rng_seed":[0,1,2,3,4],
                                    "N":[10],
                                    "B":[1,5,10,50,100,500,1000],
                                    "save_file_name": ["exp1/rng<rng_seed>_sim_N<N>_B<B_comm>.json"]}
         parameter_set1 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict1)
 
-        # Experiment 2: B=500, N=[5,10,20,50,100]
+        # Experiment 2: Vary N
         varying_parameter_dict2 = {"rng_seed":[0,1,2,3,4],
                                    "N":[5,10,20,50,100],
                                    "B":[500],
                                    "save_file_name": ["exp2/rng<rng_seed>_sim_N<N>_B<B_comm>.json"]}
         parameter_set2 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict2)
 
-        # Experiment 3: N=10, B_comm=1000, B_comp=[1,5,10,50,100,500,1000]
+        # Experiment 3: Vary B_comp
         varying_parameter_dict3 = {"rng_seed":[0,1,2,3,4],
                                    "N":[10],
                                    "B_comm":[1000],
@@ -74,11 +67,13 @@ def main():
         parameter_set3 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict3)
 
         # Run all experiments
-        # parameter_sets = parameter_set
-        # parameter_sets = parameter_set1 + parameter_set2 + parameter_set3
-        parameter_sets = parameter_set1
+        parameter_sets = []
+        # parameter_sets += parameter_set
+        parameter_sets += parameter_set1
+        parameter_sets += parameter_set2
+        parameter_sets += parameter_set3
         num_sims = len(parameter_sets)
-        print("Beginning %g simulations:" % num_sims)
+        print("Beginning %g simulations on %g workers:" % (num_sims, pool._processes))
         for sim_index, sim_time in enumerate(pool.imap_unordered(run_sim, parameter_sets)):
             print("Finished sim %g/%g in %.2f seconds." % (sim_index+1, num_sims, sim_time))
 

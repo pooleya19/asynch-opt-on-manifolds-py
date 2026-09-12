@@ -37,12 +37,12 @@ class Agent:
                 _,j = self.formation_edges[k]
                 ttilde_ij = self.formation_offsets[k]
                 Rqi = quat_to_rot_mat(self.x[self.i][1])
-                nabla_ti += 2*(1-self.alpha)*(self.x[self.i][0] - self.x[j][0] + Rqi@ttilde_ij)
+                nabla_ti += 2*(1-self.alpha)/len(self.prior_poses)*(self.x[self.i][0] - self.x[j][0] + Rqi@ttilde_ij)
             elif self.i == self.formation_edges[k][1]:
                 j,_ = self.formation_edges[k]
                 ttilde_ji = self.formation_offsets[k]
                 Rqj = quat_to_rot_mat(self.x[j][1])
-                nabla_ti += 2*(1-self.alpha)*(self.x[self.i][0] - self.x[j][0] - Rqj@ttilde_ji)
+                nabla_ti += 2*(1-self.alpha)/len(self.prior_poses)*(self.x[self.i][0] - self.x[j][0] - Rqj@ttilde_ji)
 
         # Calculate gradient f wrt Rqi
         Rqi = quat_to_rot_mat(self.x[self.i][1])
@@ -51,7 +51,7 @@ class Agent:
             if self.i == self.formation_edges[k][0]:
                 _,j = self.formation_edges[k]
                 ttilde_ij = self.formation_offsets[k]
-                nabla_Rqi += (1-self.alpha) * 2 * (self.x[j][0] - self.x[self.i][0]) @ (Rqi.T @ (self.x[j][0] - self.x[self.i][0]) - ttilde_ij).T
+                nabla_Rqi += (1-self.alpha)/len(self.prior_poses) * 2 * (self.x[j][0] - self.x[self.i][0]) @ (Rqi.T @ (self.x[j][0] - self.x[self.i][0]) - ttilde_ij).T
 
         # Calculate partial of Rqi wrt qic, c = [w,x,y,z]
         partials_Rqi = partial_rot_mat_partial_quat(self.x[self.i][1])
@@ -98,14 +98,14 @@ class SynchAgent:
                     return None
                 ttilde_ij = self.formation_offsets[k]
                 Rqi = quat_to_rot_mat(self.current_x[self.i][1])
-                nabla_ti += 2*(1-self.alpha)*(self.current_x[self.i][0] - self.current_x[j][0] + Rqi@ttilde_ij)
+                nabla_ti += 2*(1-self.alpha)/len(self.prior_poses)*(self.current_x[self.i][0] - self.current_x[j][0] + Rqi@ttilde_ij)
             elif self.i == self.formation_edges[k][1]:
                 j,_ = self.formation_edges[k]
                 if self.current_x[j] is None:
                     return None
                 ttilde_ji = self.formation_offsets[k]
                 Rqj = quat_to_rot_mat(self.current_x[j][1])
-                nabla_ti += 2*(1-self.alpha)*(self.current_x[self.i][0] - self.current_x[j][0] - Rqj@ttilde_ji)
+                nabla_ti += 2*(1-self.alpha)/len(self.prior_poses)*(self.current_x[self.i][0] - self.current_x[j][0] - Rqj@ttilde_ji)
 
         # Calculate gradient f wrt Rqi
         Rqi = quat_to_rot_mat(self.current_x[self.i][1])
@@ -116,7 +116,7 @@ class SynchAgent:
                 if self.current_x[j] is None:
                     return None
                 ttilde_ij = self.formation_offsets[k]
-                nabla_Rqi += (1-self.alpha) * 2 * (self.current_x[j][0] - self.current_x[self.i][0]) @ (Rqi.T @ (self.current_x[j][0] - self.current_x[self.i][0]) - ttilde_ij).T
+                nabla_Rqi += (1-self.alpha)/len(self.prior_poses) * 2 * (self.current_x[j][0] - self.current_x[self.i][0]) @ (Rqi.T @ (self.current_x[j][0] - self.current_x[self.i][0]) - ttilde_ij).T
 
         # Calculate partial of Rqi wrt qic, c = [w,x,y,z]
         partials_Rqi = partial_rot_mat_partial_quat(self.current_x[self.i][1])
@@ -162,8 +162,8 @@ def run_sim(parameters=None):
         B_comm = 100
         B_comp = 100
         kmax = 50000
-        lam = 0.01
-        lam_synch = 0.01
+        lam = 0.05
+        lam_synch = 0.05
         alpha = 0.01
         graph_edge_probability = 0.8
         world_size = 1
@@ -387,13 +387,13 @@ def run_sim(parameters=None):
         f = 0
         f_synch = 0
         for i in range(N):
-            f += alpha * np.linalg.norm(x[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(x[i][1]) - prior_poses[i][1], "fro")**2
+            f       += alpha * np.linalg.norm(      x[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(      x[i][1]) - prior_poses[i][1], "fro")**2
             f_synch += alpha * np.linalg.norm(x_synch[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]) - prior_poses[i][1], "fro")**2
         for e in range(len(formation_edges)):
             i,j = formation_edges[e]
             ttilde_ij = formation_offsets[e]
-            f += (1 - alpha) * np.linalg.norm(quat_to_rot_mat(x[i][1]).T @ (x[j][0] - x[i][0]) - ttilde_ij)**2
-            f_synch += (1 - alpha) * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]).T @ (x_synch[j][0] - x_synch[i][0]) - ttilde_ij)**2
+            f       += (1 - alpha)/N * np.linalg.norm(quat_to_rot_mat(      x[i][1]).T @ (      x[j][0] -       x[i][0]) - ttilde_ij)**2
+            f_synch += (1 - alpha)/N * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]).T @ (x_synch[j][0] - x_synch[i][0]) - ttilde_ij)**2
 
         # Update plots
         data_iteration.append(k)
