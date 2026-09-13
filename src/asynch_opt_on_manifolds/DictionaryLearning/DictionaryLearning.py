@@ -7,7 +7,6 @@ from pathlib import Path
 
 from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, ObliqueManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import copy_manifold_point
-from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 
 
@@ -53,8 +52,8 @@ def run_sim(parameters=None):
         B_comm = 100
         B_comp = 100
         kmax = 50000
-        gamma = 0.000001
-        gamma_synch = 0.000001
+        gamma = 0.001
+        gamma_synch = 0.001
         lam = 1
         eps = 0.01
         data_file_path = str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve())
@@ -108,23 +107,22 @@ def run_sim(parameters=None):
 
     # Load data
     Y = np.load(data_file_path)
-    d, k = Y.shape
 
     # Generate initial solution value, from Y
-    random_samples = rng.choice(k, size=n, replace=False)
+    random_samples = rng.choice(Y.shape[1], size=n, replace=False)
     D = Y[:,random_samples].copy()
     D = D / np.linalg.norm(D, axis=0)
     C = np.linalg.pinv(D) @ Y
 
     # Generate partitions
     ns = n // N + ((n % N) > np.arange(N))
-    ns_cumsum = np.concat(([0], np.cumsum(ns)))
+    ns_cumsum = np.concatenate(([0], np.cumsum(ns)))
 
     # Calculate initial solution values
     x_initial = []
     for i in range(N):
-        Di = D[:,ns_cumsum[i]:(ns_cumsum[i+1]+ns[i])]
-        Ci = C[ns_cumsum[i]:(ns_cumsum[i+1]+ns[i]),:]
+        Di = D[:,ns_cumsum[i]:ns_cumsum[i+1]]
+        Ci = C[ns_cumsum[i]:ns_cumsum[i+1],:]
         xi = [Di, Ci]
         x_initial.append(xi)
 

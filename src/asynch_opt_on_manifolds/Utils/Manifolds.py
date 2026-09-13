@@ -55,7 +55,7 @@ class UnitQuaternionManifold(Manifold):
 
 class ProductManifold(Manifold):
     def __init__(self, manifolds:list[type]):
-        assert len(manifolds)>0, "ProductManifold must contain >1 manifold."
+        assert len(manifolds)>0, "ProductManifold must contain at least one manifold."
         self.manifolds = manifolds
 
     def exp(self, x, v):

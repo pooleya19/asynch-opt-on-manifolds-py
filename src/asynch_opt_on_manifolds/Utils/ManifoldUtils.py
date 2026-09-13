@@ -21,7 +21,9 @@ def scale_manifold_point(manifold_point, scalar):
     elif type(manifold_point) == list:
         manifold_point_scaled = []
         for i in range(len(manifold_point)):
-            manifold_point_scaled.append(copy_manifold_point(manifold_point[i]))
+            manifold_point_scaled.append(scale_manifold_point(manifold_point[i], scalar))
+    elif manifold_point is None:
+        manifold_point_scaled = None
     else:
-        raise ValueError("Attempted to copy unknown type (%s)." % str(type(manifold_point)))
+        raise ValueError("Attempted to scale unknown type (%s)." % str(type(manifold_point)))
     return manifold_point_scaled

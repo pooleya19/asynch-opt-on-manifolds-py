@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def generateSyntheticData(k, n, d):
-    nonzeros_per_column = 0.2*k
+    nonzeros_per_column = 0.2*n
     std_dev = 0.2
 
     rng = np.random.default_rng(seed=0)
