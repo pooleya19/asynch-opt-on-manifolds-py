@@ -55,3 +55,5 @@ class SynchAgent:
                 self.next_x = [None for _ in range(len(self.x))]
                 self.current_iteration += 1
                 self.sent_current = False
+                return True
+        return False

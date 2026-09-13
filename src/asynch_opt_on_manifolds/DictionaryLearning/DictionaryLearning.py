@@ -12,33 +12,45 @@ from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 
 def calculate_euclidean_grad(agent):
     Y, eps, lam = agent.data
+    k = Y.shape[1]
 
-    Y_minus_DC = Y.copy()
     for j in range(len(agent.x)):
         if agent.x[j] is None:
             return None
-        Dj, Cj = agent.x[j]
-        Y_minus_DC -= Dj@Cj
+    
+    D_all = np.hstack([agent.x[j][0] for j in range(len(agent.x))])
+    C_all = np.vstack([agent.x[j][1] for j in range(len(agent.x))])
+    Y_minus_DC = Y - D_all @ C_all
 
     Di, Ci = agent.x[agent.i]
-    euc_grad_Di = -2 * Y_minus_DC @ Ci.T
-    euc_grad_Ci = -2 * Di.T @ Y_minus_DC + lam * Ci / np.sqrt(Ci * Ci + eps)
+    euc_grad_Di = -2/k * Y_minus_DC @ Ci.T
+    euc_grad_Ci = -2/k * Di.T @ Y_minus_DC + lam/k * Ci / np.sqrt(Ci * Ci + eps)
     euc_grad_xi = [euc_grad_Di, euc_grad_Ci]
     return euc_grad_xi
 
 
 def calculate_f(data, x):
     Y, eps, lam = data
+    k = Y.shape[1]
 
-    Y_minus_DC = Y.copy()
-    f = 0
-    for j in range(len(x)):
-        Dj, Cj = x[j]
-        Y_minus_DC -= Dj@Cj
-        f += lam * np.sum(np.sqrt(Cj * Cj + eps))
-
-    f += np.linalg.norm(Y_minus_DC, "fro")**2
+    D_all = np.hstack([x[j][0] for j in range(len(x))])
+    C_all = np.vstack([x[j][1] for j in range(len(x))])
+    Y_minus_DC = Y - D_all @ C_all
+    f = 1/k*np.linalg.norm(Y_minus_DC, "fro")**2 + lam/k * np.sum(np.sqrt(C_all*C_all + eps))
     return f
+
+
+def calculate_sparsity(x, threshold_percent):
+    C_all = np.vstack([x[j][1] for j in range(len(x))])
+    return 1 - np.mean(np.abs(C_all) > threshold_percent * np.max(np.abs(C_all), axis=0, keepdims=True))
+    # num_nonzero = 0
+    # size = 0
+    # for j in range(len(x)):
+    #     _, Cj = x[j]
+    #     num_nonzero += np.sum(Cj > threshold)
+    #     size += Cj.size
+    # return 1 - (num_nonzero/size)
+
 
 
 def run_sim(parameters=None):
@@ -48,15 +60,17 @@ def run_sim(parameters=None):
     if parameters is None:
         rng_seed = 0
         N = 10
-        n = 50
-        B_comm = 100
+        n = 100
+        B_comm = 1000
         B_comp = 100
-        kmax = 50000
-        gamma = 0.001
-        gamma_synch = 0.001
-        lam = 1
-        eps = 0.01
-        data_file_path = str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve())
+        kmax = 500000
+        gamma = 0.2
+        gamma_synch = 1
+        lam = 0.0000001
+        eps = 1e-7
+        sparsity_threshold = 0.999
+        data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
+        data_file_name = "digits.npy"
         show_fig = True
         save_output = False
         save_directory_path = None
@@ -99,20 +113,28 @@ def run_sim(parameters=None):
     #     save_directory_path = parameters["save_directory_path"]
     #     save_file_name = parameters["save_file_name"]
 
-    render_iteration_mod = 100
+    min_calc_f_iteration_delay = 200
+    render_iteration_mod = 1000
+    max_plot_points = 1000
+    num_reconstructions = 5
     
 
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
 
     # Load data
+    data_file_path = str(data_directory_path.joinpath(data_file_name).resolve())
     Y = np.load(data_file_path)
 
     # Generate initial solution value, from Y
-    random_samples = rng.choice(Y.shape[1], size=n, replace=False)
-    D = Y[:,random_samples].copy()
-    D = D / np.linalg.norm(D, axis=0)
-    C = np.linalg.pinv(D) @ Y
+    # random_samples = rng.choice(Y.shape[1], size=n, replace=False)
+    # D = Y[:,random_samples].copy()
+    # D = D / np.linalg.norm(D, axis=0)
+    # C = np.linalg.pinv(D) @ Y
+    D = rng.normal(size=(Y.shape[0],n))
+    D /= np.linalg.norm(D, axis=0)
+    # C = rng.uniform(low=-1, high=1, size=(n,Y.shape[1]))
+    C = 0.1*rng.uniform(size=(n,Y.shape[1]))
 
     # Generate partitions
     ns = n // N + ((n % N) > np.arange(N))
@@ -151,21 +173,43 @@ def run_sim(parameters=None):
     data_iteration = []
     data_f = []
     data_f_synch = []
+    ax1_y_min = 1e10
+    ax1_y_max = 0
     if show_fig:
-        ax1_y_min = 1e10
-        ax1_y_max = 0
-
-        fig, (ax1) = plt.subplots(1, 1, figsize=(8,5))
+        fig1, (ax1) = plt.subplots(1, 1, figsize=(8,5))
 
         plot_f = ax1.plot([], [], "-r", label="f (asynch)")[0]
         plot_f_synch = ax1.plot([], [], "-b", label="f (synch)")[0]
         ax1.set(xlabel="Iteration", ylabel="Objective Function", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
         ax1.legend(loc="lower left")
 
+        # Init reconstructions
+        reconstructions = []
+        axes_images = []
+        vmin = np.min(Y)
+        vmax = np.max(Y)
+        fig2, axes2 = plt.subplots(num_reconstructions, 3, figsize=(9/num_reconstructions*3,9))
+        axes2[0,0].set(title="True")
+        axes2[0,1].set(title="Asynch\nReconstructions")
+        axes2[0,2].set(title="Synch\nReconstructions")
+        img_side = int(round(np.sqrt(Y.shape[0])))
+        assert img_side**2 == Y.shape[0], "Y must contain square images."
+        img_shape = (img_side,img_side)
+        for i in range(num_reconstructions):
+            img = Y[:,i].reshape(img_shape)
+            axes2[i,0].imshow(img, cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
+            axes_image_asynch = axes2[i,1].imshow([[0]], cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
+            axes_image_synch  = axes2[i,2].imshow([[0]], cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
+            axes_images.append([axes_image_asynch, axes_image_synch])
+            reconstructions.append([[[0]], [[0]]])
+            for j in range(3):
+                axes2[i,j].set_axis_off()
+
         plt.show(block=False)
 
     # Init map for tracking x_synch
-    x_synch_map = {}
+    x_synch_map = {0:copy_manifold_point(x_initial)}
+    k_of_last_f_calc = -1e10
 
     # Run simulation
     for k in range(kmax):
@@ -207,60 +251,99 @@ def run_sim(parameters=None):
                 mailbox_synch_incoming[i] = []
 
         # Compute
+        agent_updated_this_k = False
+        agent_synch_updated_this_k = False
         for i in range(N):
             if iteration_to_comp[i] == k:
                 iteration_to_comp[i] = k + rng.integers(low=1,high=B_comp, endpoint=True)
+                agent_updated_this_k = True
                 agents[i].compute()
-                agents_synch[i].compute()
+                agent_synch_updated_this_k |= agents_synch[i].compute()
 
-        # Generate analytical asynch true x
-        x = []
-        for i in range(N):
-            x.append(copy_manifold_point(agents[i].x[i]))
-
-        # Update analytical synch true x map
         min_x_synch_iteration = 1e10
         for i in range(N):
-            synch_iteration_i = agents_synch[i].current_iteration
-            synch_xi = copy_manifold_point(agents_synch[i].x[i])
-            min_x_synch_iteration = min(min_x_synch_iteration, synch_iteration_i)
-            if synch_iteration_i not in x_synch_map:
-                x_synch_map[synch_iteration_i] = [None for _ in range(N)]
-            x_synch_map[synch_iteration_i][i] = synch_xi
+            min_x_synch_iteration = min(min_x_synch_iteration, agents_synch[i].current_iteration)
 
-        # Remove outdated synch x from map
-        for map_k in list(x_synch_map.keys()):
-            if map_k < min_x_synch_iteration:
-                del x_synch_map[map_k]
+        if agent_synch_updated_this_k:
+            # Update analytical synch true x map
+            for i in range(N):
+                synch_iteration_i = agents_synch[i].current_iteration
+                synch_xi = copy_manifold_point(agents_synch[i].x[i])
+                if synch_iteration_i not in x_synch_map:
+                    x_synch_map[synch_iteration_i] = [None for _ in range(N)]
+                x_synch_map[synch_iteration_i][i] = synch_xi
 
-        x_synch = x_synch_map[min_x_synch_iteration]
+            # Remove outdated synch x from map
+            for map_k in list(x_synch_map.keys()):
+                if map_k < min_x_synch_iteration:
+                    del x_synch_map[map_k]
 
-        iteration_synch = min_x_synch_iteration
+        if agent_updated_this_k and k - k_of_last_f_calc >= min_calc_f_iteration_delay:
+            k_of_last_f_calc = k
+        
+            # Generate analytical asynch true x
+            x = []
+            for i in range(N):
+                x.append(copy_manifold_point(agents[i].x[i]))
 
-        # Calculate f asynch and f synch
-        f = calculate_f(data, x)
-        f_synch = calculate_f(data, x_synch)
+            # Get analytical synch true x
+            x_synch = x_synch_map[min_x_synch_iteration]
+            iteration_synch = min_x_synch_iteration
 
-        # Update plots
-        data_iteration.append(k)
-        data_f.append(f)
-        data_f_synch.append(f_synch)
-        if show_fig:
+            # Calculate f asynch and f synch
+            f = calculate_f(data, x)
+            f_synch = calculate_f(data, x_synch)
+
+            # Calculate sparsities
+            sparsity = 100*calculate_sparsity(x, sparsity_threshold)
+            sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold)
+
+            # Append new data
+            data_iteration.append(k)
+            data_f.append(f)
+            data_f_synch.append(f_synch)
+
+            # Update min/max values of f
             ax1_y_min = min(ax1_y_min, min(f, f_synch))
             ax1_y_max = max(ax1_y_max, max(f, f_synch))
 
-            if k % render_iteration_mod == 0 and ax1_y_min < ax1_y_max:
-                print("Iteration %4g: f = %.4E" % (k, f))
-                print("\tSynch Iteration %g: f_synch = %.4E" % (iteration_synch, f_synch))
-                # print("\tSynch Iterations: %s" % (str([agents_synch[i].current_iteration for i in range(N)])))
-                # print("\t|qi|: %s" % (str([np.linalg.norm(x[i][1]).round(2).item() for i in range(N)])))
+            # Update reconstructions
+            if show_fig:
+                D = np.hstack([x[i][0] for i in range(N)])
+                C = np.vstack([x[i][1][:,0:num_reconstructions] for i in range(N)])
+                D_synch = np.hstack([x_synch[i][0] for i in range(N)])
+                C_synch = np.vstack([x_synch[i][1][:,0:num_reconstructions] for i in range(N)])
 
-                plot_f.set(xdata=data_iteration, ydata=data_f)
-                plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)
-                ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
+                for i in range(num_reconstructions):
+                    img = np.reshape(D@C[:,i], img_shape)
+                    img_synch = np.reshape(D_synch@C_synch[:,i], img_shape)
+                    reconstructions[i][0] = img
+                    reconstructions[i][1] = img_synch
 
-                fig.canvas.draw()
-                fig.canvas.flush_events()
+        # Update plots
+        if show_fig and k % render_iteration_mod == 0 and ax1_y_min < ax1_y_max:
+            print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
+            print("\tf:      = %.2E,  sparsity       = %.2f%%" % (f,       sparsity))
+            print("\tf_synch = %.2E,  sparsity_synch = %.2f%%" % (f_synch, sparsity_synch))
+
+            plot_step = max(1,len(data_iteration)//max_plot_points)
+            plot_f.set(xdata=data_iteration[::plot_step], ydata=data_f[::plot_step])
+            plot_f_synch.set(xdata=data_iteration[::plot_step], ydata=data_f_synch[::plot_step])
+            # plot_f.set(xdata=data_iteration, ydata=data_f)
+            # plot_f_synch.set(xdata=data_iteration, ydata=data_f_synch)
+            ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
+
+            # Render reconstructions
+            for i in range(num_reconstructions):
+                axes_images[i][0].set(data=reconstructions[i][0])
+                axes_images[i][1].set(data=reconstructions[i][1])
+
+            # Draw figures
+            fig1.canvas.draw()
+            fig1.canvas.flush_events()
+            fig2.canvas.draw()
+            fig2.canvas.flush_events()
+
 
     time_end = time.time()
     time_elapsed = time_end - time_start
