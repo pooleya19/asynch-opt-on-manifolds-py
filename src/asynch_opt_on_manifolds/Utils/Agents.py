@@ -40,7 +40,7 @@ class SynchAgent:
     def compute(self):
         if self.sent_current: # Must send message before overwriting it
             # Calculate Euclidean gradient
-            euc_grad_xi = self.calculate_euclidean_grad()
+            euc_grad_xi = self.calculate_euclidean_grad(self)
 
             if euc_grad_xi is not None:
                 # Calculate Riemannian gradient via projection

@@ -23,9 +23,23 @@ def calculate_euclidean_grad(agent):
 
     Di, Ci = agent.x[agent.i]
     euc_grad_Di = -2 * Y_minus_DC @ Ci.T
-    euc_grad_Ci = -2 * Di.T @ Y_minus_DC + lam * Ci @ np.sqrt(Ci * Ci + eps)
+    euc_grad_Ci = -2 * Di.T @ Y_minus_DC + lam * Ci / np.sqrt(Ci * Ci + eps)
     euc_grad_xi = [euc_grad_Di, euc_grad_Ci]
     return euc_grad_xi
+
+
+def calculate_f(data, x):
+    Y, eps, lam = data
+
+    Y_minus_DC = Y.copy()
+    f = 0
+    for j in range(len(x)):
+        Dj, Cj = x[j]
+        Y_minus_DC -= Dj@Cj
+        f += lam * np.sum(np.sqrt(Cj * Cj + eps))
+
+    f += np.linalg.norm(Y_minus_DC, "fro")**2
+    return f
 
 
 def run_sim(parameters=None):
@@ -35,11 +49,12 @@ def run_sim(parameters=None):
     if parameters is None:
         rng_seed = 0
         N = 10
+        n = 50
         B_comm = 100
         B_comp = 100
         kmax = 50000
-        gam = 0.05
-        gam_synch = 0.05
+        gamma = 0.000001
+        gamma_synch = 0.000001
         lam = 1
         eps = 0.01
         data_file_path = str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve())
@@ -91,75 +106,38 @@ def run_sim(parameters=None):
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
 
-    # Generate prior poses
-    prior_poses = []
-    for i in range(N):
-        random_position = rng.uniform(low=np.zeros((3,1)), high=world_size*np.ones((3,1)), size=(3,1))
-        random_quaternion = rng.multivariate_normal(mean=np.zeros(4), cov=np.eye(4)).reshape((4,1))
-        random_unit_quaternion = random_quaternion / np.linalg.norm(random_quaternion)
-        random_rot_mat = quat_to_rot_mat(random_unit_quaternion)
-        prior_poses.append([random_position, random_rot_mat])
+    # Load data
+    Y = np.load(data_file_path)
+    d, k = Y.shape
 
-    # Generate formation graph
-    adjacency_mat = None
-    for attempt in range(20):
-        A_rand = rng.uniform(size=(N,N))
-        A_rand = (A_rand+A_rand.T)/2 + 10*np.eye(N)
-        A = (A_rand <= graph_edge_probability) * 1
-        # Check if connected
-        D = np.diag(np.sum(A,axis=1))
-        L = D - A
-        connected = np.linalg.eigvalsh(L)[1] > 0
-        if connected:
-            adjacency_mat = A
-            break
-    if adjacency_mat is None:
-        print("Failed to generate connected measurement graph in specified number of attempts.")
-        return
+    # Generate initial solution value, from Y
+    random_samples = rng.choice(k, size=n, replace=False)
+    D = Y[:,random_samples].copy()
+    D = D / np.linalg.norm(D, axis=0)
+    C = np.linalg.pinv(D) @ Y
 
-    # Calculate formation edges
-    formation_edges = []
-    # for i in range(0,N-1):
-    #     for j in range(i+1,N):
-    for i in range(N):
-        for j in range(N):
-            if adjacency_mat[i,j] == 1:
-                formation_edges.append((i,j))
+    # Generate partitions
+    ns = n // N + ((n % N) > np.arange(N))
+    ns_cumsum = np.concat(([0], np.cumsum(ns)))
 
-    # Generate formation positions
-    formation_positions = []
-    for i in range(N):
-        position = rng.uniform(low=np.zeros((3,1)), high=world_size*np.ones((3,1)), size=(3,1))
-        formation_positions.append(position)
-
-    # Generate formation offsets
-    formation_offsets = []
-    for k in range(len(formation_edges)):
-        i,j = formation_edges[k]
-        offset = formation_positions[j] - formation_positions[i]
-        formation_offsets.append(offset)
-
-    # Generate initial solution value
+    # Calculate initial solution values
     x_initial = []
     for i in range(N):
-        random_position = rng.uniform(low=np.zeros((3,1)), high=world_size*np.ones((3,1)), size=(3,1))
-        random_quaternion = rng.multivariate_normal(mean=np.zeros(4), cov=np.eye(4)).reshape((4,1))
-        random_unit_quaternion = random_quaternion / np.linalg.norm(random_quaternion)
-        xi = [random_position, random_unit_quaternion]
+        Di = D[:,ns_cumsum[i]:(ns_cumsum[i+1]+ns[i])]
+        Ci = C[ns_cumsum[i]:(ns_cumsum[i+1]+ns[i]),:]
+        xi = [Di, Ci]
         x_initial.append(xi)
 
     # Initialize agents
     agents = []
     agents_synch = []
-    data = (alpha, prior_poses, formation_edges, formation_offsets)
+    data = (Y, eps, lam)
     for i in range(N):
-        agents.append(Agent(i, ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, lam, data))
-        agents_synch.append(SynchAgent(i, ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, lam_synch, data))
+        agents.append(Agent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma, data, calculate_euclidean_grad))
+        agents_synch.append(SynchAgent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma_synch, data, calculate_euclidean_grad))
 
     # Initialize mailboxes
-    mailbox_outgoing = []
-    for i in range(N):
-        mailbox_outgoing.append(copy_manifold_point(x_initial[i]))
+    mailbox_outgoing = copy_manifold_point(x_initial)
     mailbox_synch_incoming = [[] for i in range(N)]
 
     # Initialize iterations at which agents compute, send, and receive
@@ -204,7 +182,7 @@ def run_sim(parameters=None):
                     agents_synch[i].sent_current = True
                     for j in range(N):
                         if j != i:
-                            message = (i, agents_synch[i].current_iteration, copy_manifold_point(agents_synch[i].current_x[i]))
+                            message = (i, agents_synch[i].current_iteration, copy_manifold_point(agents_synch[i].x[i]))
                             mailbox_synch_incoming[j].append(message)
 
         # Recieve
@@ -221,7 +199,7 @@ def run_sim(parameters=None):
                     if message_iteration < agents_synch[i].current_iteration:
                         pass
                     elif message_iteration == agents_synch[i].current_iteration:
-                        agents_synch[i].current_x[j] = copy_manifold_point(message_xj)
+                        agents_synch[i].x[j] = copy_manifold_point(message_xj)
                     elif message_iteration == agents_synch[i].current_iteration + 1:
                         agents_synch[i].next_x[j] = copy_manifold_point(message_xj)
                     else:
@@ -246,10 +224,10 @@ def run_sim(parameters=None):
         min_x_synch_iteration = 1e10
         for i in range(N):
             synch_iteration_i = agents_synch[i].current_iteration
-            synch_xi = copy_manifold_point(agents_synch[i].current_x[i])
+            synch_xi = copy_manifold_point(agents_synch[i].x[i])
             min_x_synch_iteration = min(min_x_synch_iteration, synch_iteration_i)
             if synch_iteration_i not in x_synch_map:
-                x_synch_map[synch_iteration_i] = [None for i in range(N)]
+                x_synch_map[synch_iteration_i] = [None for _ in range(N)]
             x_synch_map[synch_iteration_i][i] = synch_xi
 
         # Remove outdated synch x from map
@@ -262,16 +240,8 @@ def run_sim(parameters=None):
         iteration_synch = min_x_synch_iteration
 
         # Calculate f asynch and f synch
-        f = 0
-        f_synch = 0
-        for i in range(N):
-            f       += alpha * np.linalg.norm(      x[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(      x[i][1]) - prior_poses[i][1], "fro")**2
-            f_synch += alpha * np.linalg.norm(x_synch[i][0] - prior_poses[i][0])**2 + alpha * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]) - prior_poses[i][1], "fro")**2
-        for e in range(len(formation_edges)):
-            i,j = formation_edges[e]
-            ttilde_ij = formation_offsets[e]
-            f       += (1 - alpha)/N * np.linalg.norm(quat_to_rot_mat(      x[i][1]).T @ (      x[j][0] -       x[i][0]) - ttilde_ij)**2
-            f_synch += (1 - alpha)/N * np.linalg.norm(quat_to_rot_mat(x_synch[i][1]).T @ (x_synch[j][0] - x_synch[i][0]) - ttilde_ij)**2
+        f = calculate_f(data, x)
+        f_synch = calculate_f(data, x_synch)
 
         # Update plots
         data_iteration.append(k)
