@@ -41,8 +41,6 @@ def calculate_f(data, x):
 
 
 def calculate_sparsity(x, threshold_percent):
-    C_all = np.vstack([x[j][1] for j in range(len(x))])
-    return 1 - np.mean(np.abs(C_all) > threshold_percent * np.max(np.abs(C_all), axis=0, keepdims=True))
     # num_nonzero = 0
     # size = 0
     # for j in range(len(x)):
@@ -51,6 +49,13 @@ def calculate_sparsity(x, threshold_percent):
     #     size += Cj.size
     # return 1 - (num_nonzero/size)
 
+    C_all = np.vstack([x[j][1] for j in range(len(x))])
+    return 1 - np.mean(np.abs(C_all) > threshold_percent * np.max(np.abs(C_all), axis=0, keepdims=True))
+
+    # C_all = np.vstack([x[j][1] for j in range(len(x))])
+    # l1_l2_ratio = np.linalg.norm(C_all, ord=1, axis=0, keepdims=True)/np.linalg.norm(C_all, ord=2, axis=0, keepdims=True)
+    # return np.mean((C_all.shape[0] - l1_l2_ratio) / (C_all.shape[0] - 1))
+
 
 
 def run_sim(parameters=None):
@@ -58,19 +63,55 @@ def run_sim(parameters=None):
 
     # Define parameters
     if parameters is None:
+        # rng_seed = 0
+        # N = 10
+        # n = 150
+        # B_comm = 1000
+        # B_comp = 100
+        # kmax = 500000
+        # gamma = 0.2
+        # gamma_synch = 1
+        # lam = 0.1
+        # eps = 1e-7
+        # sparsity_threshold = 0.001
+        # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
+        # data_file_name = "digits.npy"
+        # show_fig = True
+        # save_output = False
+        # save_directory_path = None
+        # save_file_name = None
+
+        # rng_seed = 0
+        # N = 10
+        # n = 300
+        # B_comm = 1000
+        # B_comp = 100
+        # kmax = 500000
+        # gamma = 10
+        # gamma_synch = 20
+        # lam = 0.1
+        # eps = 1e-7
+        # sparsity_threshold = 0.005
+        # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
+        # data_file_name = "usps.npy"
+        # show_fig = True
+        # save_output = False
+        # save_directory_path = None
+        # save_file_name = None
+
         rng_seed = 0
         N = 10
-        n = 100
+        n = 1000
         B_comm = 1000
         B_comp = 100
         kmax = 500000
-        gamma = 0.2
-        gamma_synch = 1
-        lam = 0.0000001
+        gamma = 5
+        gamma_synch = 20
+        lam = 0.1
         eps = 1e-7
-        sparsity_threshold = 0.999
+        sparsity_threshold = 0.001
         data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
-        data_file_name = "digits.npy"
+        data_file_name = "fashion_mnist.npy"
         show_fig = True
         save_output = False
         save_directory_path = None
@@ -113,8 +154,8 @@ def run_sim(parameters=None):
     #     save_directory_path = parameters["save_directory_path"]
     #     save_file_name = parameters["save_file_name"]
 
-    min_calc_f_iteration_delay = 200
-    render_iteration_mod = 1000
+    min_calc_f_iteration_delay = 100
+    render_iteration_mod = 100
     max_plot_points = 1000
     num_reconstructions = 5
     
@@ -134,7 +175,7 @@ def run_sim(parameters=None):
     D = rng.normal(size=(Y.shape[0],n))
     D /= np.linalg.norm(D, axis=0)
     # C = rng.uniform(low=-1, high=1, size=(n,Y.shape[1]))
-    C = 0.1*rng.uniform(size=(n,Y.shape[1]))
+    C = rng.uniform(low=-0.1, high=0.1, size=(n,Y.shape[1]))
 
     # Generate partitions
     ns = n // N + ((n % N) > np.arange(N))
