@@ -27,7 +27,7 @@ def compress_results(varied_parameters, save_directory_path):
     return unique_parameter_values, results_dict
 
 
-def plotExperiment1():
+def plotExperiment1(figsize, figure_directory_path, figure_file_name):
     # Define experiment features
     varied_parameters = ["rng_seed", "B_comm"]
     save_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("exp1")
@@ -40,7 +40,7 @@ def plotExperiment1():
     num_deps = len(unique_parameter_values[1])
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_deps))[:,0:3] # jet, viridis, rainbow
 
-    fig1, (ax1) = plt.subplots(1,1, figsize=(8,8))
+    fig1, (ax1) = plt.subplots(1,1, figsize=figsize)
     ax1.set(xlabel="Iterations", ylabel="Objective Value", yscale="log")
 
     iterations = np.array(results_dict[(unique_parameter_values[0][0], unique_parameter_values[1][0])]["iterations"])
@@ -74,17 +74,23 @@ def plotExperiment1():
                       Line2D([], [], color="black", linestyle=":", linewidth=2)]
     style_labels = ["Asynch", "Synch"]
 
-    leg1 = ax1.legend(color_handles, color_labels, loc="upper right")
+    leg1 = ax1.legend(color_handles, color_labels, loc="lower left")
     ax1.add_artist(leg1)
 
     fig1.canvas.draw()
     bb = leg1.get_window_extent(fig1.canvas.get_renderer())
     bb = bb.transformed(ax1.transAxes.inverted())
 
-    ax1.legend(style_handles, style_labels, loc="upper right", bbox_to_anchor=(bb.x0, 1), bbox_transform=ax1.transAxes)
+    ax1.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax1.transAxes)
+
+    # Save figure
+    print("Saving %s... " % figure_file_name, end='', flush=True)
+    figure_file_path = str(figure_directory_path.joinpath(figure_file_name).resolve())
+    fig1.savefig(figure_file_path, format="svg", bbox_inches="tight")
+    print("Done!")
 
 
-def plotExperiment2():
+def plotExperiment2(figsize, figure_directory_path, figure_file_name):
     # Define experiment features
     varied_parameters = ["rng_seed", "N"]
     save_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("exp2")
@@ -97,8 +103,8 @@ def plotExperiment2():
     num_deps = len(unique_parameter_values[1])
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_deps))[:,0:3] # jet, viridis, rainbow
 
-    fig2, (ax2) = plt.subplots(1,1, figsize=(8,8))
-    ax2.set(xlabel="Iterations", ylabel="Objective Value", yscale="log")
+    fig2, (ax2) = plt.subplots(1,1, figsize=figsize)
+    ax2.set(xlabel="Iterations", ylabel="Objective Value / N", yscale="log")
 
     iterations = np.array(results_dict[(unique_parameter_values[0][0], unique_parameter_values[1][0])]["iterations"])
     num_iterations = np.size(iterations)
@@ -134,17 +140,23 @@ def plotExperiment2():
                       Line2D([], [], color="black", linestyle=":", linewidth=2)]
     style_labels = ["Asynch", "Synch"]
 
-    leg1 = ax2.legend(color_handles, color_labels, loc="upper right")
+    leg1 = ax2.legend(color_handles, color_labels, loc="lower left")
     ax2.add_artist(leg1)
 
     fig2.canvas.draw()
     bb = leg1.get_window_extent(fig2.canvas.get_renderer())
     bb = bb.transformed(ax2.transAxes.inverted())
 
-    ax2.legend(style_handles, style_labels, loc="upper right", bbox_to_anchor=(bb.x0, 1), bbox_transform=ax2.transAxes)
+    ax2.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax2.transAxes)
+
+    # Save figure
+    print("Saving %s... " % figure_file_name, end='', flush=True)
+    figure_file_path = str(figure_directory_path.joinpath(figure_file_name).resolve())
+    fig2.savefig(figure_file_path, format="svg", bbox_inches="tight")
+    print("Done!")
 
 
-def plotExperiment3():
+def plotExperiment3(figsize, figure_directory_path, figure_file_name):
     # Define experiment features
     varied_parameters = ["rng_seed", "B_comp"]
     save_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("exp3")
@@ -157,7 +169,7 @@ def plotExperiment3():
     num_deps = len(unique_parameter_values[1])
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_deps))[:,0:3] # jet, viridis, rainbow
 
-    fig3, (ax3) = plt.subplots(1,1, figsize=(8,8))
+    fig3, (ax3) = plt.subplots(1,1, figsize=figsize)
     ax3.set(xlabel="Iterations", ylabel="Objective Value", yscale="log")
 
     iterations = np.array(results_dict[(unique_parameter_values[0][0], unique_parameter_values[1][0])]["iterations"])
@@ -193,20 +205,30 @@ def plotExperiment3():
                       Line2D([], [], color="black", linestyle=":", linewidth=2)]
     style_labels = ["Asynch", "Synch"]
 
-    leg1 = ax3.legend(color_handles, color_labels, loc="upper right")
+    leg1 = ax3.legend(color_handles, color_labels, loc="lower left")
     ax3.add_artist(leg1)
 
     fig3.canvas.draw()
     bb = leg1.get_window_extent(fig3.canvas.get_renderer())
     bb = bb.transformed(ax3.transAxes.inverted())
 
-    ax3.legend(style_handles, style_labels, loc="upper right", bbox_to_anchor=(bb.x0, 1), bbox_transform=ax3.transAxes)
+    ax3.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax3.transAxes)
+
+    # Save figure
+    print("Saving %s... " % figure_file_name, end='', flush=True)
+    figure_file_path = str(figure_directory_path.joinpath(figure_file_name).resolve())
+    fig3.savefig(figure_file_path, format="svg", bbox_inches="tight")
+    print("Done!")
 
 
 def main():
-    plotExperiment1()
-    plotExperiment2()
-    plotExperiment3()
+    figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("RotationInvariantFormationControl")
+    figure_directory_path.mkdir(parents=True, exist_ok=True)
+    figsize = (8,5)
+
+    plotExperiment1(figsize, figure_directory_path, "f_vs_B.svg")
+    plotExperiment2(figsize, figure_directory_path, "f_vs_N.svg")
+    plotExperiment3(figsize, figure_directory_path, "f_vs_Bcomp.svg")
     plt.show(block=True)
 
 
