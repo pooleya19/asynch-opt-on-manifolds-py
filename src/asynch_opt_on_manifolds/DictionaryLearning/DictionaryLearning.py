@@ -81,90 +81,102 @@ def run_sim(parameters=None):
         # save_directory_path = None
         # save_file_name = None
 
+        rng_seed = 0
+        N = 10
+        n = 300
+        B_comm = 1000
+        B_comp = 100
+        kmax = 500000
+        gamma = 10
+        gamma_synch = 20
+        lam = 0.1
+        eps = 1e-7
+        sparsity_threshold = 0.005
+        data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
+        data_file_name = "usps.npy"
+        show_fig = True
+        save_fig = False
+        save_output = False
+        save_directory_path = None
+        save_file_name = None
+        save_fig_name = None
+
         # rng_seed = 0
         # N = 10
-        # n = 300
+        # n = 1000
         # B_comm = 1000
         # B_comp = 100
         # kmax = 500000
-        # gamma = 10
+        # gamma = 5
         # gamma_synch = 20
         # lam = 0.1
         # eps = 1e-7
-        # sparsity_threshold = 0.005
+        # sparsity_threshold = 0.001
         # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
-        # data_file_name = "usps.npy"
+        # data_file_name = "fashion_mnist.npy"
         # show_fig = True
         # save_output = False
         # save_directory_path = None
         # save_file_name = None
 
-        rng_seed = 0
-        N = 10
-        n = 1000
-        B_comm = 1000
-        B_comp = 100
-        kmax = 500000
-        gamma = 5
-        gamma_synch = 20
-        lam = 0.1
-        eps = 1e-7
-        sparsity_threshold = 0.001
-        data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
-        data_file_name = "fashion_mnist.npy"
-        show_fig = True
-        save_output = False
-        save_directory_path = None
-        save_file_name = None
+        parameters = {"rng_seed": rng_seed,
+                      "N": N,
+                      "n": n,
+                      "B_comm": B_comm,
+                      "B_comp": B_comp,
+                      "kmax": kmax,
+                      "gamma": gamma,
+                      "gamma_synch": gamma_synch,
+                      "lam": lam,
+                      "eps": eps,
+                      "sparsity_threshold": sparsity_threshold,
+                      "data_directory_path": data_directory_path,
+                      "data_file_name": data_file_name,
+                      "show_fig": show_fig,
+                      "save_fig": save_fig,
+                      "save_output": save_output,
+                      "save_directory_path": save_directory_path,
+                      "save_file_name": save_file_name,
+                      "save_fig_name": save_fig_name
+                      }
     else:
-        raise RuntimeError("Not implemented yet.")
-    #     parameters = {"rng_seed": rng_seed,
-    #                   "N": N,
-    #                   "B_comm": B_comm,
-    #                   "B_comp": B_comp,
-    #                   "kmax": kmax,
-    #                   "lam": lam,
-    #                   "lam_synch": lam_synch,
-    #                   "alpha": alpha,
-    #                   "graph_edge_probability": graph_edge_probability,
-    #                   "world_size": world_size,
-    #                   "show_fig": show_fig,
-    #                   "save_output": save_output,
-    #                   "save_directory_path": save_directory_path,
-    #                   "save_file_name": save_file_name,
-    #                   }
-    # else:
-    #     if "B_comm" not in parameters:
-    #         parameters["B_comm"] = parameters["B"]
-    #     if "B_comp" not in parameters:
-    #         parameters["B_comp"] = parameters["B"]
+        if "B_comm" not in parameters:
+            parameters["B_comm"] = parameters["B"]
+        if "B_comp" not in parameters:
+            parameters["B_comp"] = parameters["B"]
             
-    #     rng_seed = parameters["rng_seed"]
-    #     N = parameters["N"]
-    #     B_comm = parameters["B_comm"]
-    #     B_comp = parameters["B_comp"]
-    #     kmax = parameters["kmax"]
-    #     lam = parameters["lam"]
-    #     lam_synch = parameters["lam_synch"]
-    #     alpha = parameters["alpha"]
-    #     graph_edge_probability = parameters["graph_edge_probability"]
-    #     world_size = parameters["world_size"]
-    #     show_fig = parameters["show_fig"]
-    #     save_output = parameters["save_output"]
-    #     save_directory_path = parameters["save_directory_path"]
-    #     save_file_name = parameters["save_file_name"]
+        rng_seed = parameters["rng_seed"]
+        N = parameters["N"]
+        n = parameters["n"]
+        B_comm = parameters["B_comm"]
+        B_comp = parameters["B_comp"]
+        kmax = parameters["kmax"]
+        gamma = parameters["gamma"]
+        gamma_synch = parameters["gamma_synch"]
+        lam = parameters["lam"]
+        eps = parameters["eps"]
+        sparsity_threshold = parameters["sparsity_threshold"]
+        data_directory_path = parameters["data_directory_path"]
+        data_file_name = parameters["data_file_name"]
+        show_fig = parameters["show_fig"]
+        save_fig = parameters["save_fig"]
+        save_output = parameters["save_output"]
+        save_directory_path = parameters["save_directory_path"]
+        save_file_name = parameters["save_file_name"]
+        save_fig_name = parameters["save_fig_name"]
 
     min_calc_f_iteration_delay = 100
     render_iteration_mod = 100
     max_plot_points = 1000
-    num_reconstructions = 5
+    reconstruction_indices = [4,1,3]
+    num_reconstructions = len(reconstruction_indices)
     
 
     # Init RNG
     rng = np.random.default_rng(seed=rng_seed)
 
     # Load data
-    data_file_path = str(data_directory_path.joinpath(data_file_name).resolve())
+    data_file_path = str(Path(data_directory_path).joinpath(data_file_name).resolve())
     Y = np.load(data_file_path)
 
     # Generate initial solution value, from Y
@@ -214,6 +226,8 @@ def run_sim(parameters=None):
     data_iteration = []
     data_f = []
     data_f_synch = []
+    data_sparsity = []
+    data_sparsity_synch = []
     ax1_y_min = 1e10
     ax1_y_max = 0
     if show_fig:
@@ -237,7 +251,7 @@ def run_sim(parameters=None):
         assert img_side**2 == Y.shape[0], "Y must contain square images."
         img_shape = (img_side,img_side)
         for i in range(num_reconstructions):
-            img = Y[:,i].reshape(img_shape)
+            img = Y[:,reconstruction_indices[i]].reshape(img_shape)
             axes2[i,0].imshow(img, cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
             axes_image_asynch = axes2[i,1].imshow([[0]], cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
             axes_image_synch  = axes2[i,2].imshow([[0]], cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
@@ -343,6 +357,8 @@ def run_sim(parameters=None):
             data_iteration.append(k)
             data_f.append(f)
             data_f_synch.append(f_synch)
+            data_sparsity.append(sparsity)
+            data_sparsity_synch.append(sparsity_synch)
 
             # Update min/max values of f
             ax1_y_min = min(ax1_y_min, min(f, f_synch))
@@ -351,9 +367,9 @@ def run_sim(parameters=None):
             # Update reconstructions
             if show_fig:
                 D = np.hstack([x[i][0] for i in range(N)])
-                C = np.vstack([x[i][1][:,0:num_reconstructions] for i in range(N)])
+                C = np.vstack([x[i][1][:,reconstruction_indices] for i in range(N)])
                 D_synch = np.hstack([x_synch[i][0] for i in range(N)])
-                C_synch = np.vstack([x_synch[i][1][:,0:num_reconstructions] for i in range(N)])
+                C_synch = np.vstack([x_synch[i][1][:,reconstruction_indices] for i in range(N)])
 
                 for i in range(num_reconstructions):
                     img = np.reshape(D@C[:,i], img_shape)
@@ -390,6 +406,13 @@ def run_sim(parameters=None):
     time_elapsed = time_end - time_start
 
     if show_fig:
+        if save_fig:
+            print("Saving figure... ", end='', flush=True)
+            Path(save_directory_path).mkdir(parents=True, exist_ok=True)
+            fig_path = str(Path(save_directory_path).joinpath(save_fig_name).resolve())
+            fig2.savefig(fig_path, format="svg")
+            print("Done!")
+
         print("Finished simulation. Close figure to quit.")
         plt.show(block=True)
 
@@ -402,7 +425,7 @@ def run_sim(parameters=None):
             file_path = file_path.replace("<"+key+">", str(parameters[key]))
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
+        output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch, "sparsity":data_sparsity, "sparsity_synch":data_sparsity_synch}
         with open(file_path, "w") as file:
             json.dump(output_data, file)
     return time_elapsed
