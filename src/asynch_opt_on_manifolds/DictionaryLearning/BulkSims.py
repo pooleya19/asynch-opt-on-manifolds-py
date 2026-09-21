@@ -64,8 +64,8 @@ def main():
     with multiprocessing.Pool(initializer=initializer) as pool:
         # Experiment 1: Vary B
         varying_parameter_dict1 = {
-            # "rng_seed":[0,1,2,3,4],
-            "rng_seed":[0],
+            "rng_seed":[0,1,2,3,4],
+            # "rng_seed":[0],
             "N":[10],
             "B":[5,10,50,100,500,1000],
             "save_file_name": ["exp1/rng<rng_seed>_N<N>_B<B_comm>.json"]
@@ -74,8 +74,8 @@ def main():
 
         # Experiment 2: Vary N
         varying_parameter_dict2 = {
-            # "rng_seed":[0,1,2,3,4],
-            "rng_seed":[0],
+            "rng_seed":[0,1,2,3,4],
+            # "rng_seed":[0],
             "N":[5,10,20,50,100],
             "B":[500],
             "save_file_name": ["exp2/rng<rng_seed>_N<N>_B<B_comm>.json"]
@@ -84,8 +84,8 @@ def main():
 
         # Run all experiments
         parameter_sets = []
-        # parameter_sets += parameter_set1
-        parameter_sets += parameter_set2
+        parameter_sets += parameter_set1
+        # parameter_sets += parameter_set2
         num_sims = len(parameter_sets)
         print("Beginning %g simulations on %g workers:" % (num_sims, pool._processes))
         for sim_index, sim_time in enumerate(pool.imap_unordered(run_sim, parameter_sets)):
