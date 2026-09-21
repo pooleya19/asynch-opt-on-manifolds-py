@@ -58,112 +58,31 @@ def calculate_sparsity(x, threshold_percent):
 
 
 
-def run_sim(parameters=None):
+def run_sim(parameters):
     time_start = time.time()
 
     # Define parameters
-    if parameters is None:
-        # rng_seed = 0
-        # N = 10
-        # n = 150
-        # B_comm = 1000
-        # B_comp = 100
-        # kmax = 500000
-        # gamma = 0.2
-        # gamma_synch = 1
-        # lam = 0.1
-        # eps = 1e-7
-        # sparsity_threshold = 0.001
-        # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
-        # data_file_name = "digits.npy"
-        # show_fig = True
-        # save_output = False
-        # save_directory_path = None
-        # save_file_name = None
+    rng_seed = parameters["rng_seed"]
+    N = parameters["N"]
+    n = parameters["n"]
+    B_comm = parameters["B_comm"]
+    B_comm_calc_ratio = parameters["B_comm_calc_ratio"]
+    kmax = parameters["kmax"]
+    gamma = parameters["gamma"]
+    gamma_synch = parameters["gamma_synch"]
+    lam = parameters["lam"]
+    eps = parameters["eps"]
+    sparsity_threshold = parameters["sparsity_threshold"]
+    data_directory_path = parameters["data_directory_path"]
+    data_file_name = parameters["data_file_name"]
+    show_fig = parameters["show_fig"]
+    save_fig = parameters["save_fig"]
+    save_output = parameters["save_output"]
+    save_directory_path = parameters["save_directory_path"]
+    save_file_name = parameters["save_file_name"]
+    save_fig_name = parameters["save_fig_name"]
 
-        rng_seed = 0
-        N = 10
-        n = 300
-        B_comm = 1000
-        B_comp = 100
-        kmax = 500000
-        gamma = 10
-        gamma_synch = 20
-        lam = 0.1
-        eps = 1e-7
-        sparsity_threshold = 0.005
-        data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
-        data_file_name = "usps.npy"
-        show_fig = True
-        save_fig = False
-        save_output = False
-        save_directory_path = None
-        save_file_name = None
-        save_fig_name = None
-
-        # rng_seed = 0
-        # N = 10
-        # n = 1000
-        # B_comm = 1000
-        # B_comp = 100
-        # kmax = 500000
-        # gamma = 5
-        # gamma_synch = 20
-        # lam = 0.1
-        # eps = 1e-7
-        # sparsity_threshold = 0.001
-        # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
-        # data_file_name = "fashion_mnist.npy"
-        # show_fig = True
-        # save_output = False
-        # save_directory_path = None
-        # save_file_name = None
-
-        parameters = {"rng_seed": rng_seed,
-                      "N": N,
-                      "n": n,
-                      "B_comm": B_comm,
-                      "B_comp": B_comp,
-                      "kmax": kmax,
-                      "gamma": gamma,
-                      "gamma_synch": gamma_synch,
-                      "lam": lam,
-                      "eps": eps,
-                      "sparsity_threshold": sparsity_threshold,
-                      "data_directory_path": data_directory_path,
-                      "data_file_name": data_file_name,
-                      "show_fig": show_fig,
-                      "save_fig": save_fig,
-                      "save_output": save_output,
-                      "save_directory_path": save_directory_path,
-                      "save_file_name": save_file_name,
-                      "save_fig_name": save_fig_name
-                      }
-    else:
-        if "B_comm" not in parameters:
-            parameters["B_comm"] = parameters["B"]
-        if "B_comp" not in parameters:
-            parameters["B_comp"] = parameters["B"]
-            
-        rng_seed = parameters["rng_seed"]
-        N = parameters["N"]
-        n = parameters["n"]
-        B_comm = parameters["B_comm"]
-        B_comp = parameters["B_comp"]
-        kmax = parameters["kmax"]
-        gamma = parameters["gamma"]
-        gamma_synch = parameters["gamma_synch"]
-        lam = parameters["lam"]
-        eps = parameters["eps"]
-        sparsity_threshold = parameters["sparsity_threshold"]
-        data_directory_path = parameters["data_directory_path"]
-        data_file_name = parameters["data_file_name"]
-        show_fig = parameters["show_fig"]
-        save_fig = parameters["save_fig"]
-        save_output = parameters["save_output"]
-        save_directory_path = parameters["save_directory_path"]
-        save_file_name = parameters["save_file_name"]
-        save_fig_name = parameters["save_fig_name"]
+    B_calc = max(1, B_comm//B_comm_calc_ratio)
 
     min_calc_f_iteration_delay = 100
     render_iteration_mod = 100
@@ -218,7 +137,7 @@ def run_sim(parameters=None):
     iteration_to_send = []
     iteration_to_recv = []
     for i in range(N):
-        iteration_to_comp.append(rng.integers(low=1,high=B_comp, endpoint=True))
+        iteration_to_comp.append(rng.integers(low=1,high=B_calc, endpoint=True))
         iteration_to_send.append(rng.integers(low=1,high=(B_comm+1)//2, endpoint=True))
         iteration_to_recv.append(rng.integers(low=1,high=(B_comm+1)//2, endpoint=True))
 
@@ -310,7 +229,7 @@ def run_sim(parameters=None):
         agent_synch_updated_this_k = False
         for i in range(N):
             if iteration_to_comp[i] == k:
-                iteration_to_comp[i] = k + rng.integers(low=1,high=B_comp, endpoint=True)
+                iteration_to_comp[i] = k + rng.integers(low=1,high=B_calc, endpoint=True)
                 agent_updated_this_k = True
                 agents[i].compute()
                 agent_synch_updated_this_k |= agents_synch[i].compute()
@@ -430,5 +349,27 @@ def run_sim(parameters=None):
             json.dump(output_data, file)
     return time_elapsed
 
+
 if __name__ == "__main__":
-    run_sim()
+    parameters = {
+        "rng_seed" : 0,
+        "N" : 10,
+        "n" : 300,
+        "B_comm" : 1000,
+        "B_comm_calc_ratio" : 10,
+        "kmax" : 500000,
+        "gamma" : 10,
+        'gamma_synch' : 20,
+        "lam" : 0.1,
+        "eps" : 1e-7,
+        "sparsity_threshold" : 0.005,
+        "data_directory_path" : Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset"),
+        "data_file_name" : "usps.npy",
+        "show_fig" : True,
+        "save_fig" : False,
+        "save_output" : False,
+        "save_directory_path" : None,
+        "save_file_name" : None,
+        "save_fig_name" : None,
+    }
+    run_sim(parameters)
