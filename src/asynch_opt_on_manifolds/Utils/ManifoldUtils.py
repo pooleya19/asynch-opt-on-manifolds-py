@@ -27,3 +27,15 @@ def scale_manifold_point(manifold_point, scalar):
     else:
         raise ValueError("Attempted to scale unknown type (%s)." % str(type(manifold_point)))
     return manifold_point_scaled
+
+def freeze_manifold_point(manifold_point):
+    if type(manifold_point) == np.ndarray:
+        manifold_point.flags.writeable = False
+    elif type(manifold_point) == list:
+        for i in range(len(manifold_point)):
+            freeze_manifold_point(manifold_point[i])
+    elif manifold_point is None:
+        pass
+    else:
+        raise ValueError("Attempted to freeze unknown type (%s)." % str(type(manifold_point)))
+    return manifold_point

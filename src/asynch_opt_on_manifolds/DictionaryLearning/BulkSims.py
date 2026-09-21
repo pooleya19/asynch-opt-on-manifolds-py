@@ -40,8 +40,8 @@ def parameter_set_generator(fixed_parameter_dict, varying_parameter_dict):
 def main():
     save_directory_path = str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_results").resolve())
     fixed_parameter_dict = {
-        "n": 300,
-        "kmax": 2000,
+        "n": 1000,
+        "kmax": 1000,
         "gamma": 10,
         "gamma_synch": 10,
         "lam": 0.1,
@@ -60,9 +60,9 @@ def main():
         varying_parameter_dict0 = {
             "rng_seed" : [0],
             "N" : [100],
-            "B_comm" : [1000],
+            "B_comm" : [100],
             "B_comm_calc_ratio" : [1],
-            "save_file_name": ["test/rng<rng_seed>_N<N>_B<B_comm>.json"]
+            "save_file_name": ["test/exp.json"],
         }
         parameter_set0 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict0)
 

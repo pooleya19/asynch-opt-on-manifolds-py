@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, ObliqueManifold, ProductManifold
-from asynch_opt_on_manifolds.Utils.ManifoldUtils import copy_manifold_point
+from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 
 
@@ -59,6 +59,7 @@ def calculate_sparsity(x, threshold_percent):
 
 
 def run_sim(parameters):
+    print("Starting sim")
     time_start = time.time()
 
     # Define parameters
@@ -84,11 +85,13 @@ def run_sim(parameters):
 
     B_calc = max(1, B_comm//B_comm_calc_ratio)
 
-    min_calc_f_iteration_delay = 100
-    render_iteration_mod = 100
+    min_calc_f_iteration_delay = min(100, B_calc)
+    render_iteration_mod = min(100, B_calc)
     max_plot_points = 1000
     reconstruction_indices = [4,1,3]
     num_reconstructions = len(reconstruction_indices)
+
+    print("Show fig:", show_fig)
     
 
     # Init RNG
@@ -115,10 +118,11 @@ def run_sim(parameters):
     # Calculate initial solution values
     x_initial = []
     for i in range(N):
-        Di = D[:,ns_cumsum[i]:ns_cumsum[i+1]]
-        Ci = C[ns_cumsum[i]:ns_cumsum[i+1],:]
+        Di = D[:,ns_cumsum[i]:ns_cumsum[i+1]].copy()
+        Ci = C[ns_cumsum[i]:ns_cumsum[i+1],:].copy()
         xi = [Di, Ci]
         x_initial.append(xi)
+    freeze_manifold_point(x_initial)
 
     # Initialize agents
     agents = []
@@ -127,9 +131,10 @@ def run_sim(parameters):
     for i in range(N):
         agents.append(Agent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma, data, calculate_euclidean_grad))
         agents_synch.append(SynchAgent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma_synch, data, calculate_euclidean_grad))
+    print("Created agents")
 
     # Initialize mailboxes
-    mailbox_outgoing = copy_manifold_point(x_initial)
+    mailbox_outgoing = list(x_initial)
     mailbox_synch_incoming = [[] for i in range(N)]
 
     # Initialize iterations at which agents compute, send, and receive
@@ -180,25 +185,27 @@ def run_sim(parameters):
                 axes2[i,j].set_axis_off()
 
         plt.show(block=False)
+        plt.pause(0.01)
 
     # Init map for tracking x_synch
-    x_synch_map = {0:copy_manifold_point(x_initial)}
+    x_synch_map = {0:list(x_initial)}
     k_of_last_f_calc = -1e10
 
     # Run simulation
     for k in range(kmax):
+        print("k: %g" % k)
         # Send
         for i in range(N):
             if iteration_to_send[i] == k:
                 iteration_to_send[i] = k + rng.integers(low=1,high=(B_comm+1)//2, endpoint=True)
                 # Let asynch agents send
-                mailbox_outgoing[i] = copy_manifold_point(agents[i].x[i])
+                mailbox_outgoing[i] = agents[i].x[i]
                 # Let synch agents send
                 if not agents_synch[i].sent_current:
                     agents_synch[i].sent_current = True
+                    message = (i, agents_synch[i].current_iteration, agents_synch[i].x[i])
                     for j in range(N):
                         if j != i:
-                            message = (i, agents_synch[i].current_iteration, copy_manifold_point(agents_synch[i].x[i]))
                             mailbox_synch_incoming[j].append(message)
 
         # Recieve
@@ -208,16 +215,16 @@ def run_sim(parameters):
                 # Let asynch agents receive
                 for j in range(N):
                     if i != j:
-                        agents[i].x[j] = copy_manifold_point(mailbox_outgoing[j])
+                        agents[i].x[j] = mailbox_outgoing[j]
                 # Let synch agents receive
                 for message in mailbox_synch_incoming[i]:
                     j, message_iteration, message_xj = message
                     if message_iteration < agents_synch[i].current_iteration:
                         pass
                     elif message_iteration == agents_synch[i].current_iteration:
-                        agents_synch[i].x[j] = copy_manifold_point(message_xj)
+                        agents_synch[i].x[j] = message_xj
                     elif message_iteration == agents_synch[i].current_iteration + 1:
-                        agents_synch[i].next_x[j] = copy_manifold_point(message_xj)
+                        agents_synch[i].next_x[j] = message_xj
                     else:
                         pass
                         # print("Error: Agent %g at iteration %g received a message from agent %g, timestamped at iteration %g." % (i, agents_synch[i].current_iteration, j, message_iteration))
@@ -242,7 +249,7 @@ def run_sim(parameters):
             # Update analytical synch true x map
             for i in range(N):
                 synch_iteration_i = agents_synch[i].current_iteration
-                synch_xi = copy_manifold_point(agents_synch[i].x[i])
+                synch_xi = agents_synch[i].x[i]
                 if synch_iteration_i not in x_synch_map:
                     x_synch_map[synch_iteration_i] = [None for _ in range(N)]
                 x_synch_map[synch_iteration_i][i] = synch_xi
@@ -251,6 +258,7 @@ def run_sim(parameters):
             for map_k in list(x_synch_map.keys()):
                 if map_k < min_x_synch_iteration:
                     del x_synch_map[map_k]
+            assert len(x_synch_map) < 5, "Length of x_synch_map exceeds expected length (current length = %g)" % len(x_synch_map)
 
         if agent_updated_this_k and k - k_of_last_f_calc >= min_calc_f_iteration_delay:
             k_of_last_f_calc = k
@@ -258,7 +266,7 @@ def run_sim(parameters):
             # Generate analytical asynch true x
             x = []
             for i in range(N):
-                x.append(copy_manifold_point(agents[i].x[i]))
+                x.append(agents[i].x[i])
 
             # Get analytical synch true x
             x_synch = x_synch_map[min_x_synch_iteration]
