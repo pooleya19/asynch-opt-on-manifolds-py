@@ -20,11 +20,10 @@ def calculate_euclidean_grad(agent):
     
     D_all = np.hstack([agent.x[j][0] for j in range(len(agent.x))])
     C_all = np.vstack([agent.x[j][1] for j in range(len(agent.x))])
-    Y_minus_DC = Y - D_all @ C_all
 
     Di, Ci = agent.x[agent.i]
-    euc_grad_Di = -2/k * Y_minus_DC @ Ci.T
-    euc_grad_Ci = -2/k * Di.T @ Y_minus_DC + lam/k * Ci / np.sqrt(Ci * Ci + eps)
+    euc_grad_Di = -2/k * (Y @ Ci.T - D_all @ (C_all @ Ci.T))
+    euc_grad_Ci = -2/k * (Di.T @ Y - (Di.T @ D_all) @ C_all) + lam/k * Ci / np.sqrt(Ci * Ci + eps)
     euc_grad_xi = [euc_grad_Di, euc_grad_Ci]
     return euc_grad_xi
 
@@ -59,7 +58,6 @@ def calculate_sparsity(x, threshold_percent):
 
 
 def run_sim(parameters):
-    print("Starting sim")
     time_start = time.time()
 
     # Define parameters
@@ -90,8 +88,6 @@ def run_sim(parameters):
     max_plot_points = 1000
     reconstruction_indices = [4,1,3]
     num_reconstructions = len(reconstruction_indices)
-
-    print("Show fig:", show_fig)
     
 
     # Init RNG
@@ -131,7 +127,6 @@ def run_sim(parameters):
     for i in range(N):
         agents.append(Agent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma, data, calculate_euclidean_grad))
         agents_synch.append(SynchAgent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma_synch, data, calculate_euclidean_grad))
-    print("Created agents")
 
     # Initialize mailboxes
     mailbox_outgoing = list(x_initial)
@@ -193,7 +188,6 @@ def run_sim(parameters):
 
     # Run simulation
     for k in range(kmax):
-        print("k: %g" % k)
         # Send
         for i in range(N):
             if iteration_to_send[i] == k:
