@@ -3,6 +3,14 @@ from pathlib import Path
 from sklearn.datasets import load_digits, fetch_openml
 
 
+def saveDataFloat32(Y, save_directory, file_name):
+    file_name_new = "_32.".join(file_name.rsplit(".",1))
+    file_path = str(save_directory.joinpath(file_name_new).resolve())
+    print("Saving float32 to %s... " % file_path, end='', flush=True)
+    np.save(file_path, Y.astype(np.float32))
+    print("Done!")
+
+
 def saveSyntheticData(k, n, d, save_directory, file_name):
     print("Saving synthetic data... ", end='', flush=True)
     nonzeros_per_column = 0.2*n
@@ -18,6 +26,7 @@ def saveSyntheticData(k, n, d, save_directory, file_name):
     Y /= scale
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
+    saveDataFloat32(Y, save_directory, file_name)
     print("Done!")
 
 
@@ -30,6 +39,7 @@ def saveDigitsData(k, save_directory, file_name):
     Y /= scale
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
+    saveDataFloat32(Y, save_directory, file_name)
     print("Done!")
 
 
@@ -42,6 +52,7 @@ def saveUSPSData(k, save_directory, file_name):
     Y /= scale
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
+    saveDataFloat32(Y, save_directory, file_name)
     print("Done!")
 
 
@@ -54,6 +65,7 @@ def saveFashionMNISTData(k, save_directory, file_name):
     Y /= scale
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
+    saveDataFloat32(Y, save_directory, file_name)
     print("Done!")
 
 

@@ -65,7 +65,7 @@ def run_sim(parameters):
     N = parameters["N"]
     n = parameters["n"]
     B_comm = parameters["B_comm"]
-    B_comm_calc_ratio = parameters["B_comm_calc_ratio"]
+    B_calc = parameters["B_calc"]
     kmax = parameters["kmax"]
     gamma = parameters["gamma"]
     gamma_synch = parameters["gamma_synch"]
@@ -80,8 +80,6 @@ def run_sim(parameters):
     save_directory_path = parameters["save_directory_path"]
     save_file_name = parameters["save_file_name"]
     save_fig_name = parameters["save_fig_name"]
-
-    B_calc = max(1, B_comm//B_comm_calc_ratio)
 
     min_calc_f_iteration_delay = min(100, B_calc)
     render_iteration_mod = min(100, B_calc)
@@ -102,10 +100,10 @@ def run_sim(parameters):
     # D = Y[:,random_samples].copy()
     # D = D / np.linalg.norm(D, axis=0)
     # C = np.linalg.pinv(D) @ Y
-    D = rng.normal(size=(Y.shape[0],n))
+    D = rng.normal(size=(Y.shape[0],n)).astype(Y.dtype)
     D /= np.linalg.norm(D, axis=0)
     # C = rng.uniform(low=-1, high=1, size=(n,Y.shape[1]))
-    C = rng.uniform(low=-0.1, high=0.1, size=(n,Y.shape[1]))
+    C = rng.uniform(low=-0.1, high=0.1, size=(n,Y.shape[1])).astype(Y.dtype)
 
     # Generate partitions
     ns = n // N + ((n % N) > np.arange(N))
@@ -276,10 +274,10 @@ def run_sim(parameters):
 
             # Append new data
             data_iteration.append(k)
-            data_f.append(f)
-            data_f_synch.append(f_synch)
-            data_sparsity.append(sparsity)
-            data_sparsity_synch.append(sparsity_synch)
+            data_f.append(float(f))
+            data_f_synch.append(float(f_synch))
+            data_sparsity.append(float(sparsity))
+            data_sparsity_synch.append(float(sparsity_synch))
 
             # Update min/max values of f
             ax1_y_min = min(ax1_y_min, min(f, f_synch))
@@ -346,7 +344,16 @@ def run_sim(parameters):
             file_path = file_path.replace("<"+key+">", str(parameters[key]))
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch, "sparsity":data_sparsity, "sparsity_synch":data_sparsity_synch}
+        output_data = {
+            "parameters":parameters, 
+            "iterations":data_iteration, 
+            "f":data_f, 
+            "f_synch":data_f_synch, 
+            "sparsity":data_sparsity, 
+            "sparsity_synch":data_sparsity_synch, 
+            "time_elapsed":time_elapsed,
+            "dtype":str(Y.dtype)
+        }
         with open(file_path, "w") as file:
             json.dump(output_data, file)
     return time_elapsed
@@ -356,17 +363,17 @@ if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
         "N" : 10,
-        "n" : 300,
-        "B_comm" : 1000,
-        "B_comm_calc_ratio" : 10,
-        "kmax" : 500000,
-        "gamma" : 10,
+        "n" : 1000,
+        "B_comm" : 100,
+        "B_calc" : 10,
+        "kmax" : 20000,
+        "gamma" : 5,
         'gamma_synch' : 20,
-        "lam" : 0.1,
+        "lam" : 0.02,
         "eps" : 1e-7,
         "sparsity_threshold" : 0.005,
         "data_directory_path" : Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset"),
-        "data_file_name" : "usps.npy",
+        "data_file_name" : "fashion_mnist_32.npy",
         "show_fig" : True,
         "save_fig" : False,
         "save_output" : False,
@@ -374,4 +381,6 @@ if __name__ == "__main__":
         "save_file_name" : None,
         "save_fig_name" : None,
     }
-    run_sim(parameters)
+    from threadpoolctl import threadpool_limits
+    with threadpool_limits(8, "blas"):
+        run_sim(parameters)
