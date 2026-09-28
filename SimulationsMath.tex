@@ -709,6 +709,200 @@ Gradient:
 \end{align}
 where $\oslash$, $\circ$, and $\sqrt{\cdot}$ respectively denote the element-wise division, multiplication, and square root operators.
 
+
+
+\subsubsection{Riemannian Hessian}
+Let $\text{diag}$ operator be defined via
+\begin{equation}
+    \text{diag}\left(\begin{bmatrix}
+        A_{11} & A_{12} & A_{13} & \cdots \\
+        A_{21} & A_{22} & A_{23} & \ddots \\
+        A_{31} & A_{32} & A_{33} & \ddots \\
+        \vdots & \ddots & \ddots & \ddots
+    \end{bmatrix}\right) = \begin{bmatrix}
+        A_{11} & 0 & \cdots & \cdots \\
+        0 & A_{22} & 0 & \ddots \\
+        \vdots & 0 & A_{33} & \ddots \\
+        \vdots & \ddots & \ddots & \ddots
+    \end{bmatrix}
+\end{equation}
+
+
+Restate objective function in way simpler form:
+
+Let 
+\begin{itemize}
+    \item $D\in\text{OB}(d,n)\subset\R{d\times n}$
+    \item $C\in\R{n\times k}$
+    \item $Y\in\R{d\times k}$
+\end{itemize}
+
+Define $\mathcal{D}$ as the product manifold $\mathcal{D} = \text{OB}(d,n) \times \R{n\times k}$.
+Let $X=(D,C) \in \mathcal{D}$.
+Let $P_X(V)$ denote the projection of $V\in\mathcal{E}$ to $T_X\mathcal{D}$, where $\mathcal{E}$ is the ambient embedding space.
+Note,
+\begin{equation}
+    P_X(V) = (P_D(V_D), P_C(V_C)) \in T_X\mathcal{D}.
+\end{equation}
+
+For Oblique manifold, we have
+\begin{equation}
+    P_D(V_D) = V_D - D \text{diag}(D^\top V_D).
+\end{equation}
+
+For Euclidean space, we have
+\begin{equation}
+    P_C(V_C) = V_C.
+\end{equation}
+
+Then,
+\begin{equation}
+    f(X) = \norm{Y-DC}_F^2 + \lambda \sum_{j=1}^n\sum_{\ell=1}^k \sqrt{C_{j\ell}^2+\varepsilon}.
+\end{equation}
+
+The Euclidean gradient is denoted 
+\begin{equation}
+    \nabla f (X) = (\nabla_D f(X), \nabla_C f(X)) \in \mathcal{E}.
+\end{equation}
+The Riemannian gradient is given by
+\begin{align}
+    \grad f(X) 
+    &= P_X(\nabla f(X)) \in T_X\mathcal{D}
+    \\
+    &= (P_D(\nabla_D f(X)), P_C(\nabla_C f(X)))
+    \\
+    &= (\nabla_D f(X) - D \text{diag}(D^\top \nabla_D f(X)), \nabla_C f(X))
+\end{align} 
+
+The Riemannian Hessian is given by
+\begin{align}
+    \Hess f(X)[V] 
+    &= P_X(D \grad f(X) [V])
+    \\
+    &= P_X(D\nabla_D f(X)[V] - V_D\text{diag}(D^\top \nabla_D f(X)) - D\text{diag}(V_D^\top\nabla_D f(X) + D^\top D\nabla_Df(X)[V]), D\nabla_Cf(X)[V])
+    \\
+    &= (P_D(D\nabla_D f(X)[V] - V_D\text{diag}(D^\top \nabla_D f(X)) - D\text{diag}(V_D^\top\nabla_D f(X) + D^\top D\nabla_Df(X)[V])),
+    P_C(D\nabla_Cf(X)[V]))
+    \\
+    &= (P_D(D\nabla_D f(X)[V]) - V_D\text{diag}(D^\top \nabla_D f(X)),
+    D\nabla_Cf(X)[V])
+\end{align}
+
+Euclidean gradients:
+\begin{align}
+    \nabla_D f(X) 
+    &= -2(Y-DC)C^\top
+    \\
+    \nabla_C f(X)
+    &= -2D^\top(Y-DC) + \lambda C \oslash \sqrt{C \circ C + \varepsilon \mathbf{1}}
+\end{align}
+where $\oslash$, $\sqrt{\cdot}$, and $\circ$ denote element-wise division, square root, and multiplication, respectively.
+
+Differentials of gradients
+\begin{align}
+    D \nabla_D f(X) [V] 
+    &= \lim_{t\to0} \frac{\nabla_D f(X+tV) - \nabla_D f(X)}{t}
+    \\
+    &= \lim_{t\to0} \frac{1}{t} \left( -2(Y - (D+tV_D)(C+tV_C))(C+tV_C)^\top + 2(Y-DC)C^\top \right)
+    \\
+    &= \lim_{t\to0} \frac{2}{t} \left( -(Y - DC - tV_DC - tDV_C - t^2V_DV_C)(C+tV_C)^\top + (Y-DC)C^\top \right)
+    \\
+    &= \lim_{t\to0} \frac{2}{t} \left( -YC^\top + DCC^\top + tV_DCC^\top + tDV_CC^\top + t^2V_DV_CC^\top - tYV_C^\top + tDCV_C^\top 
+    \right. \\ &\qquad \left.
+    + t^2V_DCV_C^\top + t^2DV_CV_C^\top + t^3V_DV_CV_C^\top + YC^\top - DCC^\top \right)
+    \\
+    &= \lim_{t\to0} \frac{2}{t} \left( tV_DCC^\top + tDV_CC^\top + t^2V_DV_CC^\top - tYV_C^\top + tDCV_C^\top 
+    \right. \\ &\qquad \left.
+    + t^2V_DCV_C^\top + t^2DV_CV_C^\top + t^3V_DV_CV_C^\top \right)
+    \\
+    &= 2(V_DCC^\top + DV_CC^\top -YV_C^\top + DCV_C^\top)
+    \\
+    &= 2(V_DC + DV_C)C^\top -2(Y-DC)V_C^\top
+\end{align}
+\begin{align}
+    D \nabla_C f(X) [V]
+    &= -2D^\top(-V_DC - DV_C) - 2V_D^\top (Y-DC)
+    \\ &\qquad
+    + \lambda V_C \oslash \sqrt{C\circ C + \varepsilon \mathbf{1}}
+    - \lambda C \circ C \circ V_C \circ (C\circ C + \varepsilon \mathbf{1})^{-3/2}
+    \\
+    &= -2D^\top(-V_DC - DV_C) - 2V_D^\top (Y-DC)
+    \\ &\qquad
+    + \lambda \varepsilon V_C \circ (C\circ C + \varepsilon \mathbf{1})^{-3/2}
+\end{align}
+where powers are evaluated element-wise.
+
+Proof that the problem is NOT $L$-Lipschitz:
+
+Pick some $V = (V_D, 0)$,
+where $V_D = u e_1^\top$,
+where $u\perp b_1$ (recall $b_1$ is the first column of $D$),
+and $\norm{u}=1$, 
+and $e_1 = [1, 0, \dots, 0]^\top$,
+and with $Y^\top b_1 \neq \zero{}$.
+Let $C = \begin{bmatrix}
+    c_1 \\ \zero{} \\ \vdots
+\end{bmatrix}$, where $c_1$ is the first row of $C$, such that
+$c_1 = s\cdot b_1^\top Y$ for some scalar $s$.
+
+Note that for any $V\in T_X\mathcal{D}$, it holds for any $Z\in\mathcal{E}$
+\begin{equation}
+    \langle V, P_X(Z) \rangle = \langle V, Z \rangle.
+\end{equation}
+
+We can see that
+\begin{align}
+    \langle V, \Hess f(X)[V] \rangle
+    &= \langle V_D, P_D(D\nabla_D f(X)[V]) - V_D\text{diag}(D^\top \nabla_D f(X)) \rangle
+    \\
+    &= \langle V_D, D\nabla_D f(X)[V] \rangle - \langle V_D, V_D\text{diag}(D^\top \nabla_D f(X)) \rangle
+    \\
+    &= \langle V_D, 2V_DCC^\top \rangle - \langle V_D, V_D\text{diag}(D^\top \nabla_D f(X)) \rangle
+    \\
+    &= \langle V_D, 2V_DCC^\top \rangle - \langle V_D, V_D\text{diag}(D^\top (-2(Y-DC)C^\top)) \rangle
+    \\
+    &= 2 \langle V_D, V_DCC^\top \rangle + 2 \langle V_D, V_D\text{diag}(D^\top (Y-DC)C^\top) \rangle
+    \\
+    &= 2 \langle V_D^\top V_D, CC^\top \rangle + 2 \langle V_D^\top V_D, \text{diag}(D^\top (Y-DC)C^\top) \rangle
+    \\
+    &= 2 \langle e_1 e_1^\top, CC^\top \rangle + 2 \langle e_1 e_1^\top, \text{diag}(D^\top (Y-DC)C^\top) \rangle
+    \\
+    &= 2 \norm{c_1}_2^2 + 2 b_1^\top (Y-DC) c_1^\top
+    \\
+    &= 2 \norm{c_1}_2^2 + 2 b_1^\top (Y-b_1 c_1) c_1^\top
+    \\
+    &= 2 \norm{c_1}_2^2 + 2 b_1^\top Yc_1^\top - 2 b_1^\top b_1 c_1 c_1^\top
+    \\
+    &= 2 \norm{c_1}_2^2 + 2 b_1^\top Yc_1^\top - 2 c_1 c_1^\top 
+    \\
+    &= 2 b_1^\top Y c_1^\top
+    \\
+    &= 2 s b_1^\top Y Y^\top b_1
+    \\
+    &= 2 s \norm{Y^\top b_1}_2^2
+    \\
+    &\overset{s\to\infty}{\to} \infty
+\end{align}
+
+We have shown that as $s\to\infty$,
+\begin{equation}
+    \langle V, \Hess f(X)[V] \rangle \to \infty,
+\end{equation}
+even with a choice of $V$ with $\norm{V}=1$.
+
+We know
+\begin{align}
+    | \langle V, \Hess f(X)[V] \rangle |
+    &\leq \norm{V} \norm{\Hess f(X)[V]}
+    \\
+    &\leq \norm{V}^2 \max_{\norm{V}=1} \norm{\Hess f(X)[V]} 
+    \\
+    &= \norm{V}^2 \norm{\Hess f(X)}_{\text{op}} 
+\end{align}
+
+As such, it is possible for the operator norm of the Hessian to go to infinity.
+
+
 \newpage
 
 \bibliographystyle{IEEEtran}
