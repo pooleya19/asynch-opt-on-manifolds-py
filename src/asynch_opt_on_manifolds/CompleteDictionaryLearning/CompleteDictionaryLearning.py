@@ -12,13 +12,13 @@ from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 
 def calculate_euclidean_grad(agent):
     Y, beta = agent.data
-    dim, num_samples = Y.shape
+    _, num_samples = Y.shape
 
     for j in range(len(agent.x)):
         if agent.x[j] is None:
             return None
 
-    A_all = np.hstack([agent.x[j] for j in range(len(agent.x))])
+    A_all = np.hstack(agent.x)
     Ai = agent.x[agent.i]
     euc_grad_xi = -1/num_samples * Y @ np.power(Y.T @ Ai, 3) + beta * (A_all @ (A_all.T @ Ai) - Ai)
     return euc_grad_xi
@@ -27,11 +27,19 @@ def calculate_euclidean_grad(agent):
 def calculate_f(data, x):
     Y, beta = data
     dim, num_samples = Y.shape
-
     A_all = np.hstack(x)
-
     f = -1/(4*num_samples) * np.sum(np.power(A_all.T @ Y, 4)) + beta/4 * np.linalg.norm(A_all.T @ A_all - np.eye(dim), "fro")**2
     return f
+
+
+def calculate_norm_grad(data, x):
+    Y, beta = data
+    _, num_samples = Y.shape
+    A_all = np.hstack(x)
+    euc_grad = -1/num_samples * Y @ np.power(Y.T @ A_all, 3) + beta * (A_all @ (A_all.T @ A_all) - A_all)
+    rie_grad = euc_grad - A_all * np.sum(A_all*euc_grad, axis=0, keepdims=True)
+    norm_rie_grad = np.linalg.norm(rie_grad, "fro")
+    return norm_rie_grad
 
 
 def calculate_sparsity(x, threshold_percent, data):
@@ -243,8 +251,10 @@ def run_sim(parameters):
             iteration_synch = min_x_synch_iteration
 
             # Calculate f asynch and f synch
-            f = calculate_f(data, x)
-            f_synch = calculate_f(data, x_synch)
+            # f = calculate_f(data, x)
+            # f_synch = calculate_f(data, x_synch)
+            f = calculate_norm_grad(data, x)
+            f_synch = calculate_norm_grad(data, x_synch)
 
             # Calculate sparsities
             sparsity = 100*calculate_sparsity(x, sparsity_threshold, data)
@@ -342,13 +352,11 @@ if __name__ == "__main__":
         "rng_seed" : 0,
         "N" : 10,
         "B_comm" : 100,
-        "B_calc" : 10,
-        "kmax" : 5000,
-        "eta" : 1,
-        'eta_synch' : 1,
-        'beta' : 1,
-        "lam" : 0.02,
-        "eps" : 1e-7,
+        "B_calc" : 5,
+        "kmax" : 20000,
+        "eta" : 0.001,
+        'eta_synch' : 0.001,
+        'beta' : 0.001,
         "sparsity_threshold" : 0.005,
         "data_directory_path" : Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset"),
         "data_file_name" : "synthetic.npy",
