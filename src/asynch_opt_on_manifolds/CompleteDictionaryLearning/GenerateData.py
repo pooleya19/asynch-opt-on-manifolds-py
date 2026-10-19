@@ -6,9 +6,9 @@ from sklearn.datasets import load_digits, fetch_openml
 def saveDataFloat32(Y, save_directory, file_name):
     file_name_new = "_32.".join(file_name.rsplit(".",1))
     file_path = str(save_directory.joinpath(file_name_new).resolve())
-    print("Saving float32 to %s... " % file_path, end='', flush=True)
+    print("(Saving 32-bit version... ", end='', flush=True)
     np.save(file_path, Y.astype(np.float32))
-    print("Done!")
+    print("Done!) ", end='', flush=True)
 
 
 def saveSyntheticData(k, n, d, save_directory, file_name):

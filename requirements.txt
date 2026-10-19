@@ -1,4 +1,4 @@
--e git+https://github.com/pooleya19/asynch-opt-on-manifolds-py.git@9a76c8ceec31686545b2376d4ab54dc28ca659bc#egg=asynch_opt_on_manifolds
+# -e git+https://github.com/pooleya19/asynch-opt-on-manifolds-py.git
 cloudpickle==3.1.2
 contourpy==1.3.2
 cycler==0.12.1

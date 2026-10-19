@@ -5,55 +5,43 @@ import time
 import os
 from pathlib import Path
 
-from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, ObliqueManifold, ProductManifold
+from asynch_opt_on_manifolds.Utils.Manifolds import ObliqueManifold
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 
 
 def calculate_euclidean_grad(agent):
-    Y, eps, lam = agent.data
-    k = Y.shape[1]
+    Y, beta = agent.data
+    dim, num_samples = Y.shape
 
     for j in range(len(agent.x)):
         if agent.x[j] is None:
             return None
-    
-    D_all = np.hstack([agent.x[j][0] for j in range(len(agent.x))])
-    C_all = np.vstack([agent.x[j][1] for j in range(len(agent.x))])
 
-    Di, Ci = agent.x[agent.i]
-    euc_grad_Di = -2/k * (Y @ Ci.T - D_all @ (C_all @ Ci.T))
-    euc_grad_Ci = -2/k * (Di.T @ Y - (Di.T @ D_all) @ C_all) + lam/k * Ci / np.sqrt(Ci * Ci + eps)
-    euc_grad_xi = [euc_grad_Di, euc_grad_Ci]
+    A_all = np.hstack([agent.x[j] for j in range(len(agent.x))])
+    Ai = agent.x[agent.i]
+    euc_grad_xi = -1/num_samples * Y @ np.power(Y.T @ Ai, 3) + beta * (A_all@A_all.T - np.eye(dim)) @ Ai
     return euc_grad_xi
 
 
 def calculate_f(data, x):
-    Y, eps, lam = data
-    k = Y.shape[1]
+    Y, beta = data
+    dim, num_samples = Y.shape
 
-    D_all = np.hstack([x[j][0] for j in range(len(x))])
-    C_all = np.vstack([x[j][1] for j in range(len(x))])
-    Y_minus_DC = Y - D_all @ C_all
-    f = 1/k*np.linalg.norm(Y_minus_DC, "fro")**2 + lam/k * np.sum(np.sqrt(C_all*C_all + eps))
+    A_all = np.hstack(x)
+
+    f = -1/(4*num_samples) * np.sum(np.power(A_all.T @ Y, 4)) + beta/4 * np.linalg.norm(A_all.T @ A_all - np.eye(dim), "fro")**2
     return f
 
 
-def calculate_sparsity(x, threshold_percent):
-    # num_nonzero = 0
-    # size = 0
-    # for j in range(len(x)):
-    #     _, Cj = x[j]
-    #     num_nonzero += np.sum(Cj > threshold)
-    #     size += Cj.size
-    # return 1 - (num_nonzero/size)
+def calculate_sparsity(x, threshold_percent, data):
+    Y, _ = data
+    A_all = np.hstack(x)
+    C = A_all.T @ Y
+    return 1 - np.mean(np.abs(C) > threshold_percent * np.max(np.abs(C), axis=0, keepdims=True))
 
-    C_all = np.vstack([x[j][1] for j in range(len(x))])
-    return 1 - np.mean(np.abs(C_all) > threshold_percent * np.max(np.abs(C_all), axis=0, keepdims=True))
-
-    # C_all = np.vstack([x[j][1] for j in range(len(x))])
-    # l1_l2_ratio = np.linalg.norm(C_all, ord=1, axis=0, keepdims=True)/np.linalg.norm(C_all, ord=2, axis=0, keepdims=True)
-    # return np.mean((C_all.shape[0] - l1_l2_ratio) / (C_all.shape[0] - 1))
+    # l1_l2_ratio = np.linalg.norm(C, ord=1, axis=0, keepdims=True)/np.linalg.norm(C, ord=2, axis=0, keepdims=True)
+    # return np.mean((C.shape[0] - l1_l2_ratio) / (C.shape[0] - 1))
 
 
 
@@ -63,14 +51,12 @@ def run_sim(parameters):
     # Define parameters
     rng_seed = parameters["rng_seed"]
     N = parameters["N"]
-    n = parameters["n"]
     B_comm = parameters["B_comm"]
     B_calc = parameters["B_calc"]
     kmax = parameters["kmax"]
-    gamma = parameters["gamma"]
-    gamma_synch = parameters["gamma_synch"]
-    lam = parameters["lam"]
-    eps = parameters["eps"]
+    eta = parameters["eta"]
+    eta_synch = parameters["eta_synch"]
+    beta = parameters["beta"]
     sparsity_threshold = parameters["sparsity_threshold"]
     data_directory_path = parameters["data_directory_path"]
     data_file_name = parameters["data_file_name"]
@@ -94,37 +80,29 @@ def run_sim(parameters):
     # Load data
     data_file_path = str(Path(data_directory_path).joinpath(data_file_name).resolve())
     Y = np.load(data_file_path)
+    dim, num_samples = Y.shape
 
     # Generate initial solution value, from Y
-    # random_samples = rng.choice(Y.shape[1], size=n, replace=False)
-    # D = Y[:,random_samples].copy()
-    # D = D / np.linalg.norm(D, axis=0)
-    # C = np.linalg.pinv(D) @ Y
-    D = rng.normal(size=(Y.shape[0],n)).astype(Y.dtype)
-    D /= np.linalg.norm(D, axis=0)
-    # C = rng.uniform(low=-1, high=1, size=(n,Y.shape[1]))
-    C = rng.uniform(low=-0.1, high=0.1, size=(n,Y.shape[1])).astype(Y.dtype)
+    A = np.eye(dim)
 
     # Generate partitions
-    ns = n // N + ((n % N) > np.arange(N))
+    ns = dim // N + ((dim % N) > np.arange(N))
     ns_cumsum = np.concatenate(([0], np.cumsum(ns)))
 
     # Calculate initial solution values
     x_initial = []
     for i in range(N):
-        Di = D[:,ns_cumsum[i]:ns_cumsum[i+1]].copy()
-        Ci = C[ns_cumsum[i]:ns_cumsum[i+1],:].copy()
-        xi = [Di, Ci]
+        xi = A[:,ns_cumsum[i]:ns_cumsum[i+1]].copy()
         x_initial.append(xi)
     freeze_manifold_point(x_initial)
 
     # Initialize agents
     agents = []
     agents_synch = []
-    data = (Y, eps, lam)
+    data = (Y, beta)
     for i in range(N):
-        agents.append(Agent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma, data, calculate_euclidean_grad))
-        agents_synch.append(SynchAgent(i, ProductManifold([ObliqueManifold(), EuclideanManifold()]), x_initial, gamma_synch, data, calculate_euclidean_grad))
+        agents.append(Agent(i, ObliqueManifold(), x_initial, eta, data, calculate_euclidean_grad))
+        agents_synch.append(SynchAgent(i, ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad))
 
     # Initialize mailboxes
     mailbox_outgoing = list(x_initial)
@@ -269,8 +247,8 @@ def run_sim(parameters):
             f_synch = calculate_f(data, x_synch)
 
             # Calculate sparsities
-            sparsity = 100*calculate_sparsity(x, sparsity_threshold)
-            sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold)
+            sparsity = 100*calculate_sparsity(x, sparsity_threshold, data)
+            sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold, data)
 
             # Append new data
             data_iteration.append(k)
@@ -285,14 +263,14 @@ def run_sim(parameters):
 
             # Update reconstructions
             if show_fig:
-                D = np.hstack([x[i][0] for i in range(N)])
-                C = np.vstack([x[i][1][:,reconstruction_indices] for i in range(N)])
-                D_synch = np.hstack([x_synch[i][0] for i in range(N)])
-                C_synch = np.vstack([x_synch[i][1][:,reconstruction_indices] for i in range(N)])
+                A = np.hstack(x)
+                C = A.T @ Y[:,reconstruction_indices]
+                A_synch = np.hstack(x_synch)
+                C_synch = A_synch.T @ Y[:,reconstruction_indices]
 
                 for i in range(num_reconstructions):
-                    img = np.reshape(D@C[:,i], img_shape)
-                    img_synch = np.reshape(D_synch@C_synch[:,i], img_shape)
+                    img = np.reshape(A @ C[:,i], img_shape)
+                    img_synch = np.reshape(A_synch @ C_synch[:,i], img_shape)
                     reconstructions[i][0] = img
                     reconstructions[i][1] = img_synch
 
@@ -363,17 +341,17 @@ if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
         "N" : 10,
-        "n" : 1000,
         "B_comm" : 100,
         "B_calc" : 10,
-        "kmax" : 20000,
-        "gamma" : 5,
-        'gamma_synch' : 20,
+        "kmax" : 5000,
+        "eta" : 1,
+        'eta_synch' : 1,
+        'beta' : 1,
         "lam" : 0.02,
         "eps" : 1e-7,
         "sparsity_threshold" : 0.005,
         "data_directory_path" : Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset"),
-        "data_file_name" : "fashion_mnist_32.npy",
+        "data_file_name" : "synthetic.npy",
         "show_fig" : True,
         "save_fig" : False,
         "save_output" : False,
