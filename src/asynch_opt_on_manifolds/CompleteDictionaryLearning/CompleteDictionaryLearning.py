@@ -20,7 +20,7 @@ def calculate_euclidean_grad(agent):
 
     A_all = np.hstack([agent.x[j] for j in range(len(agent.x))])
     Ai = agent.x[agent.i]
-    euc_grad_xi = -1/num_samples * Y @ np.power(Y.T @ Ai, 3) + beta * (A_all@A_all.T - np.eye(dim)) @ Ai
+    euc_grad_xi = -1/num_samples * Y @ np.power(Y.T @ Ai, 3) + beta * (A_all @ (A_all.T @ Ai) - Ai)
     return euc_grad_xi
 
 
