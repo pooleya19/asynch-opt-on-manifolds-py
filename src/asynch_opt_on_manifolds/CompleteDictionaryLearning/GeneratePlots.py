@@ -106,9 +106,9 @@ def main():
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("DictionaryLearning")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
 
-    plotExperiment(figsize, data_directory_path.joinpath("exp1"), figure_directory_path.joinpath("VaryB.pdf"),     "B_comm",      "B", True)
-    plotExperiment(figsize, data_directory_path.joinpath("exp2"), figure_directory_path.joinpath("VaryN.pdf"),          "N",      "N", True)
-    plotExperiment(figsize, data_directory_path.joinpath("exp3"), figure_directory_path.joinpath("VaryBcomm.pdf"), "B_comm", "B_comm", True)
+    plotExperiment(figsize, data_directory_path.joinpath("exp1"), figure_directory_path.joinpath("f_vs_B.pdf"),     "B_comm",      "B", True)
+    plotExperiment(figsize, data_directory_path.joinpath("exp2"), figure_directory_path.joinpath("f_vs_N.pdf"),          "N",      "N", True)
+    plotExperiment(figsize, data_directory_path.joinpath("exp3"), figure_directory_path.joinpath("f_vs_Bcomm.pdf"), "B_comm", "B_comm", True)
 
     plt.show(block=True)
 

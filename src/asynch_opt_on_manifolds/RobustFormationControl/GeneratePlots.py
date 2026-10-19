@@ -86,7 +86,7 @@ def plotExperiment1(figsize, figure_directory_path, figure_file_name):
     # Save figure
     print("Saving %s... " % figure_file_name, end='', flush=True)
     figure_file_path = str(figure_directory_path.joinpath(figure_file_name).resolve())
-    fig1.savefig(figure_file_path, format="svg", bbox_inches="tight")
+    fig1.savefig(figure_file_path, format="pdf", bbox_inches="tight")
     print("Done!")
 
 
@@ -152,7 +152,7 @@ def plotExperiment2(figsize, figure_directory_path, figure_file_name):
     # Save figure
     print("Saving %s... " % figure_file_name, end='', flush=True)
     figure_file_path = str(figure_directory_path.joinpath(figure_file_name).resolve())
-    fig2.savefig(figure_file_path, format="svg", bbox_inches="tight")
+    fig2.savefig(figure_file_path, format="pdf", bbox_inches="tight")
     print("Done!")
 
 
@@ -217,7 +217,7 @@ def plotExperiment3(figsize, figure_directory_path, figure_file_name):
     # Save figure
     print("Saving %s... " % figure_file_name, end='', flush=True)
     figure_file_path = str(figure_directory_path.joinpath(figure_file_name).resolve())
-    fig3.savefig(figure_file_path, format="svg", bbox_inches="tight")
+    fig3.savefig(figure_file_path, format="pdf", bbox_inches="tight")
     print("Done!")
 
 
@@ -226,9 +226,9 @@ def main():
     figure_directory_path.mkdir(parents=True, exist_ok=True)
     figsize = (8,5)
 
-    plotExperiment1(figsize, figure_directory_path, "f_vs_B.svg")
-    plotExperiment2(figsize, figure_directory_path, "f_vs_N.svg")
-    plotExperiment3(figsize, figure_directory_path, "f_vs_Bcomp.svg")
+    plotExperiment1(figsize, figure_directory_path, "f_vs_B.pdf")
+    plotExperiment2(figsize, figure_directory_path, "f_vs_N.pdf")
+    plotExperiment3(figsize, figure_directory_path, "f_vs_Bcomp.pdf")
     plt.show(block=True)
 
 
