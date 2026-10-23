@@ -4,12 +4,14 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import json
 import time
 import os
+import cv2
+
 
 from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat, partial_rot_mat_partial_quat
-from asynch_opt_on_manifolds.RobustFormationControl.Formations import generateFormationHelix
+from asynch_opt_on_manifolds.RobustFormationControl.Formations import generateFormationHelix, generateFormationLattice
 from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralized
 
 
@@ -143,6 +145,8 @@ def run_sim(parameters):
     alpha = parameters["alpha"]
     delta = parameters["delta"]
     show_fig = parameters["show_fig"]
+    save_video = parameters["save_video"]
+    save_video_name = parameters["save_video_name"]
     # save_fig = parameters["save_fig"]
     # save_output = parameters["save_output"]
     # save_directory_path = parameters["save_directory_path"]
@@ -166,7 +170,8 @@ def run_sim(parameters):
         prior_poses.append([random_position, random_unit_quaternion])
 
     # Generate formation
-    formation_positions, formation_edges, formation_offsets = generateFormationHelix(N)
+    # formation_positions, formation_edges, formation_offsets = generateFormationHelix(N)
+    formation_positions, formation_edges, formation_offsets = generateFormationLattice(N)
     x_formation = [[formation_positions[i], np.reshape([1,0,0,0], (4,1))] for i in range(N)]
     data = (alpha, delta, prior_poses, formation_edges, formation_offsets)
 
@@ -178,8 +183,8 @@ def run_sim(parameters):
     centralized_kmax = 10000
     centralized_min_grad_norm = 1e-15
     print("Solving centralized problem...")
-    f_star = runSimCentralized(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_kmax, centralized_min_grad_norm)
-    # f_star = -100
+    # f_star = runSimCentralized(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_kmax, centralized_min_grad_norm)
+    f_star = -100
     print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
@@ -231,28 +236,29 @@ def run_sim(parameters):
         ax1.set(xlabel="Iteration", ylabel="f - fstar", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
         ax1.legend(loc="lower left")
 
-        fig2, (ax_form_des, ax_form_init, ax_form_asynch, ax_form_synch) = plt.subplots(1, 4, figsize=(20,5), subplot_kw={"projection": "3d"})
+        fig2, ax_form = plt.subplots(2, 2, figsize=(10,10), subplot_kw={"projection": "3d"}, layout="tight")
+        ((ax_form_des, ax_form_init), (ax_form_asynch, ax_form_synch)) = ax_form
         axes_length = 0.1
         axes_linewidth = 1.5
-        edge_linewidth = 1
-        
-        ax_form_des.set(title="Desired Formation", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
+        edge_linewidth = 0.5
+
+        lim = 0.55
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_formation, formation_edges, axes_length)
         ax_form_des.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
         ax_form_des.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
         ax_form_des.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
         ax_form_des.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
         ax_form_des.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+        ax_form_des.set(title="Desired Formation", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
         
-        ax_form_init.set(title="Initial Poses", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
         ax_form_init.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
         ax_form_init.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
         ax_form_init.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
         ax_form_init.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
         ax_form_init.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+        ax_form_init.set(title="Initial Poses", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
         
-        ax_form_asynch.set(title="Poses (Asynch)", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
         ax_form_asynch_positions = ax_form_asynch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
         ax_form_asynch_axes_x = Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth)
@@ -263,8 +269,8 @@ def run_sim(parameters):
         ax_form_asynch.add_collection3d(ax_form_asynch_axes_y)
         ax_form_asynch.add_collection3d(ax_form_asynch_axes_z)
         ax_form_asynch.add_collection3d(ax_form_asynch_edges)
+        ax_form_asynch.set(title="Poses (Asynch)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
         
-        ax_form_synch.set(title="Poses (Synch)", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
         ax_form_synch_positions = ax_form_synch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
         ax_form_synch_axes_x = Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth)
@@ -275,9 +281,22 @@ def run_sim(parameters):
         ax_form_synch.add_collection3d(ax_form_synch_axes_y)
         ax_form_synch.add_collection3d(ax_form_synch_axes_z)
         ax_form_synch.add_collection3d(ax_form_synch_edges)
+        ax_form_synch.set(title="Poses (Synch)", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7), aspect="equal")
+
+        fig1.canvas.draw()
+        fig1.canvas.flush_events()
+        fig2.canvas.draw()
+        fig2.canvas.flush_events()
 
         plt.show(block=False)
         plt.pause(0.01)
+
+    # Init video
+    if save_video:
+        fi2_width, fig2_height = fig2.canvas.get_width_height(physical=True)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
+        video = cv2.VideoWriter(save_video_name, fourcc, 30.0, (fi2_width, fig2_height))
+
 
     # Init map for tracking x_synch
     x_synch_map = {0:list(x_initial)}
@@ -413,8 +432,17 @@ def run_sim(parameters):
                 fig2.canvas.draw()
                 fig2.canvas.flush_events()
 
+                if save_video:
+                    img = np.asarray(fig2.canvas.buffer_rgba())[:,:,:3]
+                    img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                    video.write(img_bgr)
+
+
     time_end = time.time()
     time_elapsed = time_end - time_start
+
+    if save_video:
+        video.release()
 
     if show_fig:
         print("Finished simulation. Close figure to quit.")
@@ -437,16 +465,20 @@ def run_sim(parameters):
 if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
-        "N" : 19,
+        "N" : 60,
         "B_comp1" : 2,
         "B_comp2" : 10,
         "B_comm" : 100,
-        "kmax" : 20000,
-        "eta" : 0.3,
-        "eta_synch" : 0.3,
-        "alpha" : 0.0,
+        "kmax" : 30000,
+        # "eta" : 0.3,
+        # "eta_synch" : 0.3,
+        "eta" : 0.5,
+        "eta_synch" : 0.5,
+        "alpha" : 0.0001,
         "delta" : 1,
         "show_fig" : True,
+        "save_video" : True,
+        "save_video_name" : "video.mp4"
     }
     from threadpoolctl import threadpool_limits
     with threadpool_limits(8, "blas"):
