@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 import json
 import time
 import os
@@ -90,6 +91,43 @@ def calculate_f(data, x):
     return f
 
 
+def generate_formation_visuals(x, formation_edges, axis_length):
+    N = len(x)
+    ts = [x[i][0] for i in range(N)]
+    Rs = [quat_to_rot_mat(x[i][1]) for i in range(N)]
+
+    positions = np.zeros((N,3))
+    x_axes = np.zeros((N,2,3))
+    y_axes = np.zeros((N,2,3))
+    z_axes = np.zeros((N,2,3))
+    for i in range(N):
+        positions[i,:] = ts[i][:,0]
+        x_axes[i,0,:] = ts[i][:,0]
+        x_axes[i,1,:] = ts[i][:,0] + axis_length*Rs[i][:,0]
+        y_axes[i,0,:] = ts[i][:,0]
+        y_axes[i,1,:] = ts[i][:,0] + axis_length*Rs[i][:,1]
+        z_axes[i,0,:] = ts[i][:,0]
+        z_axes[i,1,:] = ts[i][:,0] + axis_length*Rs[i][:,2]
+
+    edges = np.zeros((len(formation_edges),2,3))
+    for k in range(len(formation_edges)):
+        i,j = formation_edges[k]
+        edges[k,0,:] = ts[i][:,0]
+        edges[k,1,:] = ts[j][:,0]
+
+    return positions, x_axes, y_axes, z_axes, edges
+
+
+def formation_geometry(x, formation_edges, s=0.1):
+    P = np.hstack([xi[0] for xi in x]).T                    # (N,3) positions
+    R = np.stack([quat_to_rot_mat(xi[1]) for xi in x])      # (N,3,3)
+    E = np.array(formation_edges)                           # (n_edges,2)
+    edge_segs = np.stack([P[E[:,0]], P[E[:,1]]], axis=1)    # (n_edges,2,3)
+    axis_segs = [np.stack([P, P + s*R[:,:,c]], axis=1)      # 3 x (N,2,3)
+                 for c in range(3)]
+    return P, edge_segs, axis_segs
+
+
 def run_sim(parameters):
     time_start = time.time()
 
@@ -122,13 +160,14 @@ def run_sim(parameters):
     # Generate prior poses
     prior_poses = []
     for i in range(N):
-        random_position = rng_static.uniform(low=np.zeros((3,1)), high=np.ones((3,1)), size=(3,1))
+        random_position = rng_static.uniform(low=-0.5*np.ones((3,1)), high=0.5*np.ones((3,1)), size=(3,1))
         random_quaternion = rng_static.multivariate_normal(mean=np.zeros(4), cov=np.eye(4)).reshape((4,1))
         random_unit_quaternion = random_quaternion / np.linalg.norm(random_quaternion)
         prior_poses.append([random_position, random_unit_quaternion])
 
     # Generate formation
     formation_positions, formation_edges, formation_offsets = generateFormationHelix(N)
+    x_formation = [[formation_positions[i], np.reshape([1,0,0,0], (4,1))] for i in range(N)]
     data = (alpha, delta, prior_poses, formation_edges, formation_offsets)
 
     # Initialize solution
@@ -192,7 +231,50 @@ def run_sim(parameters):
         ax1.set(xlabel="Iteration", ylabel="f - fstar", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
         ax1.legend(loc="lower left")
 
-        # fig2, (ax2, ax3, ax4, ax5) = plt.subplots(1, 4, figsize=(20,5))
+        fig2, (ax_form_des, ax_form_init, ax_form_asynch, ax_form_synch) = plt.subplots(1, 4, figsize=(20,5), subplot_kw={"projection": "3d"})
+        axes_length = 0.1
+        axes_linewidth = 1.5
+        edge_linewidth = 1
+        
+        ax_form_des.set(title="Desired Formation", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
+        positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_formation, formation_edges, axes_length)
+        ax_form_des.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+        ax_form_des.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
+        ax_form_des.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
+        ax_form_des.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
+        ax_form_des.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+        
+        ax_form_init.set(title="Initial Poses", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
+        positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
+        ax_form_init.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+        ax_form_init.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
+        ax_form_init.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
+        ax_form_init.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
+        ax_form_init.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+        
+        ax_form_asynch.set(title="Poses (Asynch)", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
+        positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
+        ax_form_asynch_positions = ax_form_asynch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+        ax_form_asynch_axes_x = Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth)
+        ax_form_asynch_axes_y = Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth)
+        ax_form_asynch_axes_z = Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth)
+        ax_form_asynch_edges = Line3DCollection(edges, colors="gray", linewidths=edge_linewidth)
+        ax_form_asynch.add_collection3d(ax_form_asynch_axes_x)
+        ax_form_asynch.add_collection3d(ax_form_asynch_axes_y)
+        ax_form_asynch.add_collection3d(ax_form_asynch_axes_z)
+        ax_form_asynch.add_collection3d(ax_form_asynch_edges)
+        
+        ax_form_synch.set(title="Poses (Synch)", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7))
+        positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
+        ax_form_synch_positions = ax_form_synch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+        ax_form_synch_axes_x = Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth)
+        ax_form_synch_axes_y = Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth)
+        ax_form_synch_axes_z = Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth)
+        ax_form_synch_edges = Line3DCollection(edges, colors="gray", linewidths=edge_linewidth)
+        ax_form_synch.add_collection3d(ax_form_synch_axes_x)
+        ax_form_synch.add_collection3d(ax_form_synch_axes_y)
+        ax_form_synch.add_collection3d(ax_form_synch_axes_z)
+        ax_form_synch.add_collection3d(ax_form_synch_edges)
 
         plt.show(block=False)
         plt.pause(0.01)
@@ -312,8 +394,24 @@ def run_sim(parameters):
                 plot_f_synch.set(xdata=data_iteration, ydata=np.array(data_f_synch)-f_star)
                 ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
 
+                positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x, formation_edges, axes_length)
+                ax_form_asynch_positions.set_data_3d(positions[:,0], positions[:,1], positions[:,2])
+                ax_form_asynch_axes_x.set_segments(axes_x)
+                ax_form_asynch_axes_y.set_segments(axes_y)
+                ax_form_asynch_axes_z.set_segments(axes_z)
+                ax_form_asynch_edges.set_segments(edges)
+
+                positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_synch, formation_edges, axes_length)
+                ax_form_synch_positions.set_data_3d(positions[:,0], positions[:,1], positions[:,2])
+                ax_form_synch_axes_x.set_segments(axes_x)
+                ax_form_synch_axes_y.set_segments(axes_y)
+                ax_form_synch_axes_z.set_segments(axes_z)
+                ax_form_synch_edges.set_segments(edges)
+
                 fig1.canvas.draw()
                 fig1.canvas.flush_events()
+                fig2.canvas.draw()
+                fig2.canvas.flush_events()
 
     time_end = time.time()
     time_elapsed = time_end - time_start
@@ -339,14 +437,14 @@ def run_sim(parameters):
 if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
-        "N" : 10,
+        "N" : 19,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 1000,
+        "B_comm" : 100,
         "kmax" : 20000,
         "eta" : 0.3,
         "eta_synch" : 0.3,
-        "alpha" : 0.02,
+        "alpha" : 0.0,
         "delta" : 1,
         "show_fig" : True,
     }

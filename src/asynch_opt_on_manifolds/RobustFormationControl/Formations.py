@@ -14,8 +14,10 @@ def generateFormationHelix(N):
     formation_edges = []
     formation_offsets = []
     for i in range(N-1):
-        formation_edges.append((i,i+1))
-        offset = formation_positions[i+1] - formation_positions[i]
-        formation_offsets.append(offset)
+        for j in range(i+1,min(N,i+3)):
+            formation_edges.append((i,j))
+            formation_offsets.append(formation_positions[j] - formation_positions[i])
+            formation_edges.append((j,i))
+            formation_offsets.append(formation_positions[i] - formation_positions[j])
 
     return formation_positions, formation_edges, formation_offsets
