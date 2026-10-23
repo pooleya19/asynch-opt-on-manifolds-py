@@ -3,11 +3,11 @@ from asynch_opt_on_manifolds.Utils.ManifoldUtils import scale_manifold_point, fr
 
 
 class Agent:
-    def __init__(self, i, manifold, x_initial, gamma, data, calculate_euclidean_grad):
+    def __init__(self, i, manifold, x_initial, eta, data, calculate_euclidean_grad):
         self.i = i
         self.manifold = manifold
         self.x = list(x_initial)
-        self.gamma = gamma
+        self.eta = eta
         self.data = data
         self.calculate_euclidean_grad = calculate_euclidean_grad
 
@@ -20,15 +20,15 @@ class Agent:
         grad_xi = self.manifold.proj(self.x[self.i], euc_grad_xi)
 
         # Perform gradient step
-        scaled_grad_xi = scale_manifold_point(grad_xi, -self.gamma)
+        scaled_grad_xi = scale_manifold_point(grad_xi, -self.eta)
         self.x[self.i] = freeze_manifold_point(self.manifold.exp(self.x[self.i], scaled_grad_xi))
 
 
 class SynchAgent:
-    def __init__(self, i, manifold, x_initial, gamma, data, calculate_euclidean_grad):
+    def __init__(self, i, manifold, x_initial, eta, data, calculate_euclidean_grad):
         self.i = i
         self.manifold = manifold
-        self.gamma = gamma
+        self.eta = eta
         self.data = data
         self.calculate_euclidean_grad = calculate_euclidean_grad
 
@@ -47,7 +47,7 @@ class SynchAgent:
                 grad_xi = self.manifold.proj(self.x[self.i], euc_grad_xi)
 
                 # Perform gradient step
-                scaled_grad_xi = scale_manifold_point(grad_xi, -self.gamma)
+                scaled_grad_xi = scale_manifold_point(grad_xi, -self.eta)
                 self.next_x[self.i] = freeze_manifold_point(self.manifold.exp(self.x[self.i], scaled_grad_xi))
 
                 # Update buffers

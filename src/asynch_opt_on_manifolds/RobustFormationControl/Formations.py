@@ -1,0 +1,21 @@
+import numpy as np
+
+def generateFormationHelix(N):
+    helix_rotations = 3
+
+    formation_positions = []
+    for i in range(N):
+        t = i/(N-1)
+        position = np.reshape([0.5*np.cos(helix_rotations*2*np.pi*t),
+                               0.5*np.sin(helix_rotations*2*np.pi*t),
+                               t - 0.5], (3,1))
+        formation_positions.append(position)
+
+    formation_edges = []
+    formation_offsets = []
+    for i in range(N-1):
+        formation_edges.append((i,i+1))
+        offset = formation_positions[i+1] - formation_positions[i]
+        formation_offsets.append(offset)
+
+    return formation_positions, formation_edges, formation_offsets
