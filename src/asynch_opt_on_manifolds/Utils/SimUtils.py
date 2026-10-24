@@ -10,7 +10,7 @@ def runSimCentralized(manifold, x_initial, eta, data, calculate_euclidean_grad, 
         agents.append(Agent(i, manifold, x_initial, eta, data, calculate_euclidean_grad))
 
     # Run sim
-    print("Solving centralized problem:")
+    # print("Solving centralized problem:")
     for k in range(centralized_kmax):
         # Compute
         for i in range(N):
@@ -24,17 +24,17 @@ def runSimCentralized(manifold, x_initial, eta, data, calculate_euclidean_grad, 
                 agents[i].x[j] = agents[j].x[j]
 
         # Check gradient
-        grad_norm_squared = 0
-        for i in range(N):
-            rie_grad = manifold.proj(agents[i].x[i], calculate_euclidean_grad(agents[i]))
-            grad_norm_squared += np.linalg.norm(rie_grad[0])**2 + np.linalg.norm(rie_grad[1])**2
-        grad_norm = np.sqrt(grad_norm_squared)
+        if k % 100 == 0:
+            grad_norm_squared = 0
+            for i in range(N):
+                rie_grad = manifold.proj(agents[i].x[i], calculate_euclidean_grad(agents[i]))
+                grad_norm_squared += np.linalg.norm(rie_grad[0])**2 + np.linalg.norm(rie_grad[1])**2
+            grad_norm = np.sqrt(grad_norm_squared)
 
-        if k % 10 == 0:
-            print("k=%g, gradient norm=%.2E   (stopping at k=%g, gradient norm=%.2E)" % (k, grad_norm, centralized_kmax, centralized_min_grad_norm))
+            # print("k=%g, gradient norm=%.2E   (stopping at k=%g, gradient norm=%.2E)" % (k, grad_norm, centralized_kmax, centralized_min_grad_norm))
 
-        if grad_norm <= centralized_min_grad_norm:
-            break
+            if grad_norm <= centralized_min_grad_norm:
+                break
 
 
     # Compute final f

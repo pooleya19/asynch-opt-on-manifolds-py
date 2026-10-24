@@ -5,6 +5,7 @@ import json
 import time
 import os
 import cv2
+from pathlib import Path
 
 
 from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
@@ -145,13 +146,14 @@ def run_sim(parameters):
     alpha = parameters["alpha"]
     delta = parameters["delta"]
     show_fig = parameters["show_fig"]
+    save_final_fig = parameters["save_final_fig"]
+    save_final_fig_name = parameters["save_final_fig_name"]
     save_video = parameters["save_video"]
     save_video_name = parameters["save_video_name"]
-    # save_fig = parameters["save_fig"]
-    # save_output = parameters["save_output"]
-    # save_directory_path = parameters["save_directory_path"]
-    # save_file_name = parameters["save_file_name"]
-    # save_fig_name = parameters["save_fig_name"]
+    save_data = parameters["save_data"]
+    save_data_name = parameters["save_data_name"]
+
+    render_fig = show_fig or save_video or save_final_fig
     
     # Define parameters
     compute_metrics_mod = 10
@@ -180,12 +182,12 @@ def run_sim(parameters):
     freeze_manifold_point(x_initial)
 
     # Solve centralized problem
-    centralized_kmax = 10000
+    centralized_kmax = 30000
     centralized_min_grad_norm = 1e-15
-    print("Solving centralized problem...")
+    # print("Solving centralized problem...")
     # f_star = runSimCentralized(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_kmax, centralized_min_grad_norm)
     f_star = -100
-    print("Finished solving centralized problem! f_star = %.2E" % f_star)
+    # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
     agents = []
@@ -228,7 +230,7 @@ def run_sim(parameters):
     data_f_synch = []
     ax1_y_min = 1e10
     ax1_y_max = 0
-    if show_fig:
+    if render_fig:
         fig1, (ax1) = plt.subplots(1, 1, figsize=(8,5))
 
         plot_f = ax1.plot([], [], "-r", label="f (asynch)")[0]
@@ -236,7 +238,7 @@ def run_sim(parameters):
         ax1.set(xlabel="Iteration", ylabel="f - fstar", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
         ax1.legend(loc="lower left")
 
-        fig2, ax_form = plt.subplots(2, 2, figsize=(10,10), subplot_kw={"projection": "3d"}, layout="tight")
+        fig2, ax_form = plt.subplots(2, 2, figsize=(10,10), subplot_kw={"projection": "3d"})
         ((ax_form_des, ax_form_init), (ax_form_asynch, ax_form_synch)) = ax_form
         axes_length = 0.1
         axes_linewidth = 1.5
@@ -281,20 +283,22 @@ def run_sim(parameters):
         ax_form_synch.add_collection3d(ax_form_synch_axes_y)
         ax_form_synch.add_collection3d(ax_form_synch_axes_z)
         ax_form_synch.add_collection3d(ax_form_synch_edges)
-        ax_form_synch.set(title="Poses (Synch)", xlim=(-0.7,0.7), ylim=(-0.7,0.7), zlim=(-0.7,0.7), aspect="equal")
+        ax_form_synch.set(title="Poses (Synch)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
 
         fig1.canvas.draw()
         fig1.canvas.flush_events()
         fig2.canvas.draw()
         fig2.canvas.flush_events()
 
-        plt.show(block=False)
-        plt.pause(0.01)
+        if show_fig:
+            plt.show(block=False)
+            plt.pause(0.01)
 
     # Init video
     if save_video:
         fi2_width, fig2_height = fig2.canvas.get_width_height(physical=True)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
+        os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
         video = cv2.VideoWriter(save_video_name, fourcc, 30.0, (fi2_width, fig2_height))
 
 
@@ -403,7 +407,7 @@ def run_sim(parameters):
             ax1_y_max = max(ax1_y_max, max(f-f_star, f_synch-f_star))
 
         # Update plots
-        if show_fig and k % render_mod == 0:
+        if render_fig and k % render_mod == 0:
             if ax1_y_min < ax1_y_max:
                 print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
                 print("\tf       - f_star = %.2E" % (f-f_star))
@@ -441,45 +445,55 @@ def run_sim(parameters):
     time_end = time.time()
     time_elapsed = time_end - time_start
 
+    if save_final_fig:
+        os.makedirs(os.path.dirname(save_final_fig_name), exist_ok=True)
+        fig2.savefig(save_final_fig_name, format="pdf")
+
     if save_video:
         video.release()
+
+    if save_data:
+        os.makedirs(os.path.dirname(save_data_name), exist_ok=True)
+
+        output_data = {"parameters" : parameters, 
+                       "iterations" : data_iteration, 
+                       "f" : data_f, 
+                       "f_synch" : data_f_synch, 
+                       "f_star" : f_star,
+                       "time_elapsed" : time_elapsed}
+        
+        with open(save_data_name, "w") as file:
+            json.dump(output_data, file)
 
     if show_fig:
         print("Finished simulation. Close figure to quit.")
         plt.show(block=True)
 
-    # if save_output:
-    #     file_path = os.path.join(save_directory_path, save_file_name)
-    #     keys_descending_length = list(parameters.keys())
-    #     keys_descending_length.sort(key=len, reverse=True)
-    #     for i in range(len(keys_descending_length)):
-    #         key = keys_descending_length[i]
-    #         file_path = file_path.replace("<"+key+">", str(parameters[key]))
-    #     os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    return time_elapsed
 
-    #     output_data = {"parameters":parameters, "iterations":data_iteration, "f":data_f, "f_synch":data_f_synch}
-    #     with open(file_path, "w") as file:
-    #         json.dump(output_data, file)
-    # return time_elapsed
 
 if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
-        "N" : 60,
+        # "N" : 16,
+        "N" : 8,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 100,
-        "kmax" : 30000,
-        # "eta" : 0.3,
-        # "eta_synch" : 0.3,
-        "eta" : 0.5,
-        "eta_synch" : 0.5,
-        "alpha" : 0.0001,
+        "B_comm" : 10,
+        "kmax" : 5000,
+        "eta" : 0.2,
+        "eta_synch" : 0.2,
+        "alpha" : 1e-5,
         "delta" : 1,
         "show_fig" : True,
-        "save_video" : True,
-        "save_video_name" : "video.mp4"
+        "save_final_fig" : False,
+        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("final_fig.pdf").resolve()),
+        "save_video" : False,
+        "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("video.mp4").resolve()),
+        "save_data" : False,
+        "save_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("formation_control").joinpath("data.json").resolve()),
     }
+
     from threadpoolctl import threadpool_limits
     with threadpool_limits(8, "blas"):
         run_sim(parameters)
