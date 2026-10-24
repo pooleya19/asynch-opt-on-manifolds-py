@@ -47,7 +47,7 @@ def main():
                 parameter_set = default_parameters.copy()
                 parameter_set["rng_seed"] = rng_seed
                 parameter_set["B_comm"] = B_comm
-                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1_rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
+                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
                 parameter_sets.append(parameter_set)
 
         # Experiment 2: Vary N
@@ -56,7 +56,7 @@ def main():
                 parameter_set = default_parameters.copy()
                 parameter_set["rng_seed"] = rng_seed
                 parameter_set["N"] = N
-                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2_rng%g_N%g.json" % (rng_seed, N)).resolve())
+                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
                 parameter_sets.append(parameter_set)
 
         # Experiment 3: Render figure and video
