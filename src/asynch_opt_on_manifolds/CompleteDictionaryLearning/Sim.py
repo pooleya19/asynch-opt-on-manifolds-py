@@ -56,7 +56,7 @@ def calculate_sparsity(x, threshold_percent, data):
 def run_sim(parameters):
     time_start = time.time()
 
-    # Define parameters
+    # Load parameters
     rng_seed = parameters["rng_seed"]
     N = parameters["N"]
     B_comm = parameters["B_comm"]
@@ -66,16 +66,20 @@ def run_sim(parameters):
     eta_synch = parameters["eta_synch"]
     beta = parameters["beta"]
     sparsity_threshold = parameters["sparsity_threshold"]
-    data_directory_path = parameters["data_directory_path"]
     data_file_name = parameters["data_file_name"]
     show_fig = parameters["show_fig"]
-    save_fig = parameters["save_fig"]
-    save_output = parameters["save_output"]
-    save_directory_path = parameters["save_directory_path"]
-    save_file_name = parameters["save_file_name"]
-    save_fig_name = parameters["save_fig_name"]
+    save_final_fig = parameters["save_final_fig"]
+    save_final_fig_name = parameters["save_final_fig_name"]
+    save_video = parameters["save_video"]
+    save_video_name = parameters["save_video_name"]
+    save_data = parameters["save_data"]
+    save_data_name = parameters["save_data_name"]
 
-    min_calc_f_iteration_delay = min(100, B_calc)
+    # Define parameters
+    render_fig = show_fig or save_video or save_final_fig
+    compute_metrics_mod = 10
+    render_mod = 100
+    
     render_iteration_mod = min(100, B_calc)
     max_plot_points = 1000
     reconstruction_indices = [4,1,3]
@@ -351,21 +355,22 @@ if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
         "N" : 10,
-        "B_comm" : 100,
-        "B_calc" : 5,
-        "kmax" : 20000,
+        "B_comp1" : 2,
+        "B_comp2" : 10,
+        "B_comm" : 10,
+        "kmax" : 5000,
         "eta" : 0.001,
         'eta_synch' : 0.001,
         'beta' : 0.001,
         "sparsity_threshold" : 0.005,
-        "data_directory_path" : Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset"),
-        "data_file_name" : "synthetic.npy",
+        "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
         "show_fig" : True,
-        "save_fig" : False,
-        "save_output" : False,
-        "save_directory_path" : None,
-        "save_file_name" : None,
-        "save_fig_name" : None,
+        "save_final_fig" : False,
+        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("final_fig.pdf").resolve()),
+        "save_video" : False,
+        "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("video.mp4").resolve()),
+        "save_data" : False,
+        "save_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("formation_control").joinpath("data.json").resolve()),
     }
     from threadpoolctl import threadpool_limits
     with threadpool_limits(8, "blas"):

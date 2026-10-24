@@ -153,9 +153,8 @@ def run_sim(parameters):
     save_data = parameters["save_data"]
     save_data_name = parameters["save_data_name"]
 
-    render_fig = show_fig or save_video or save_final_fig
-    
     # Define parameters
+    render_fig = show_fig or save_video or save_final_fig
     compute_metrics_mod = 10
     render_mod = 100
 
@@ -459,6 +458,7 @@ def run_sim(parameters):
                        "f" : data_f, 
                        "f_synch" : data_f_synch, 
                        "f_star" : f_star,
+                       "synch_iterations" : iteration_synch,
                        "time_elapsed" : time_elapsed}
         
         with open(save_data_name, "w") as file:
