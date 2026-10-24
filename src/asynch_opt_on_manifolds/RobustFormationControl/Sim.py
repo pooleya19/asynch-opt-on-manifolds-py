@@ -12,7 +12,7 @@ from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuate
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat, partial_rot_mat_partial_quat
-from asynch_opt_on_manifolds.RobustFormationControl.Formations import generateFormationHelix, generateFormationLattice
+from asynch_opt_on_manifolds.RobustFormationControl.Formations import generateFormationLattice
 from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralized
 
 
@@ -172,7 +172,6 @@ def run_sim(parameters):
         prior_poses.append([random_position, random_unit_quaternion])
 
     # Generate formation
-    # formation_positions, formation_edges, formation_offsets = generateFormationHelix(N)
     formation_positions, formation_edges, formation_offsets = generateFormationLattice(N)
     x_formation = [[formation_positions[i], np.reshape([1,0,0,0], (4,1))] for i in range(N)]
     data = (alpha, delta, prior_poses, formation_edges, formation_offsets)
@@ -185,8 +184,8 @@ def run_sim(parameters):
     centralized_kmax = 30000
     centralized_min_grad_norm = 1e-15
     # print("Solving centralized problem...")
-    # f_star = runSimCentralized(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_kmax, centralized_min_grad_norm)
-    f_star = -100
+    f_star = runSimCentralized(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_kmax, centralized_min_grad_norm)
+    # f_star = -100
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
@@ -475,8 +474,7 @@ def run_sim(parameters):
 if __name__ == "__main__":
     parameters = {
         "rng_seed" : 0,
-        # "N" : 16,
-        "N" : 8,
+        "N" : 12,
         "B_comp1" : 2,
         "B_comp2" : 10,
         "B_comm" : 10,
