@@ -12,16 +12,38 @@ def run_sim_safely(parameters):
 
 
 def main():
+    # # 2026/10/23
+    # default_parameters = {
+    #     "rng_seed" : 0,
+    #     "N" : 12,
+    #     "B_comp1" : 2,
+    #     "B_comp2" : 10,
+    #     "B_comm" : 10,
+    #     "kmax" : 5000,
+    #     "eta" : 0.2,
+    #     "eta_synch" : 0.2,
+    #     "alpha" : 1e-5,
+    #     "delta" : 1,
+    #     "show_fig" : False,
+    #     "save_final_fig" : False,
+    #     "save_final_fig_name" : None,
+    #     "save_video" : False,
+    #     "save_video_name" : None,
+    #     "save_data" : True,
+    #     "save_data_name" : None,
+    # }
+
+    # 2026/10/24
     default_parameters = {
         "rng_seed" : 0,
-        "N" : 12,
+        "N" : 32,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 10,
-        "kmax" : 5000,
+        "B_comm" : 500,
+        "kmax" : 10000,
         "eta" : 0.2,
         "eta_synch" : 0.2,
-        "alpha" : 1e-5,
+        "alpha" : 1e-4,
         "delta" : 1,
         "show_fig" : False,
         "save_final_fig" : False,
@@ -34,7 +56,7 @@ def main():
 
     values_rng_seed = [0,1,2,3,4]
     values_B_comm = [10,20,50,100,200,500,1000,2000]
-    values_N = [4,8,16,32,64,128,256]
+    values_N = [4,8,16,32,64,128]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
 

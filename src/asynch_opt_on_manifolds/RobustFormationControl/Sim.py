@@ -13,7 +13,7 @@ from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat, partial_rot_mat_partial_quat
 from asynch_opt_on_manifolds.RobustFormationControl.Formations import generateFormationLattice
-from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralized
+from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRGD, runSimCentralizedRBB
 
 
 def calculate_euclidean_grad(agent):
@@ -180,11 +180,11 @@ def run_sim(parameters):
     freeze_manifold_point(x_initial)
 
     # Solve centralized problem
-    centralized_kmax = 30000
-    centralized_min_grad_norm = 1e-15
+    centralized_min_grad_norm = 1e-12
     # print("Solving centralized problem...")
-    f_star = runSimCentralized(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_kmax, centralized_min_grad_norm)
-    # f_star = -100
+    # f_star = runSimCentralizedRGD(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, 100000, centralized_min_grad_norm)
+    f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    # f_star = 1.88e-2
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
@@ -242,7 +242,7 @@ def run_sim(parameters):
         axes_linewidth = 1.5
         edge_linewidth = 0.5
 
-        lim = 0.55
+        lim = 0.8
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_formation, formation_edges, axes_length)
         ax_form_des.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
         ax_form_des.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
@@ -472,26 +472,26 @@ def run_sim(parameters):
 
 
 if __name__ == "__main__":
-    parameters = {
+    default_parameters = {
         "rng_seed" : 0,
-        "N" : 12,
+        "N" : 32,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 10,
-        "kmax" : 5000,
+        "B_comm" : 1000,
+        "kmax" : 10000,
         "eta" : 0.2,
         "eta_synch" : 0.2,
-        "alpha" : 1e-5,
+        "alpha" : 1e-4,
         "delta" : 1,
         "show_fig" : True,
         "save_final_fig" : False,
-        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("final_fig.pdf").resolve()),
+        "save_final_fig_name" : None,
         "save_video" : False,
-        "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("video.mp4").resolve()),
+        "save_video_name" : None,
         "save_data" : False,
-        "save_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("formation_control").joinpath("data.json").resolve()),
+        "save_data_name" : None,
     }
 
     from threadpoolctl import threadpool_limits
     with threadpool_limits(8, "blas"):
-        run_sim(parameters)
+        run_sim(default_parameters)
