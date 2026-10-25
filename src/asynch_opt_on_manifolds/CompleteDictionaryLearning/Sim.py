@@ -10,6 +10,7 @@ from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRBB
 import scipy.linalg
+from scipy.optimize import linear_sum_assignment
 
 
 def calculate_euclidean_grad(agent):
@@ -54,6 +55,11 @@ def calculate_sparsity(x, threshold_percent, data):
     # return np.mean((C.shape[0] - l1_l2_ratio) / (C.shape[0] - 1))
 
 
+def calculate_max_coherence(x):
+    A = np.hstack(x)
+    return np.max(np.abs(A.T@A - np.eye(A.shape[0])))
+
+
 def run_sim(parameters):
     time_start = time.time()
 
@@ -69,6 +75,7 @@ def run_sim(parameters):
     beta = parameters["beta"]
     sparsity_threshold = parameters["sparsity_threshold"]
     m = parameters["m"]
+    r = parameters["r"]
     data_file_name = parameters["data_file_name"]
     show_fig = parameters["show_fig"]
     save_final_fig = parameters["save_final_fig"]
@@ -82,10 +89,7 @@ def run_sim(parameters):
     render_fig = show_fig or save_video or save_final_fig
     compute_metrics_mod = 10
     render_mod = 100
-    # reconstruction_indices = [4,1,3]
-    reconstruction_indices = [0,1,2,3,4,5,6,7,8,9]
-    num_reconstructions = len(reconstruction_indices)
-    atom_indices = list(range(20))
+    recon_indices = list(range(20))
 
     # Init RNG
     rng_sim = np.random.default_rng(seed=rng_seed)
@@ -98,8 +102,6 @@ def run_sim(parameters):
     Y_mean = np.mean(Y, axis=1, keepdims=True)
     Y_cov = 1/num_samples * (Y - Y_mean) @ (Y - Y_mean).T
     V, U = np.linalg.eigh(Y_cov)
-    # r = int(np.floor(dim_raw*0.96))
-    r = 40
     Vr = V[dim_raw-r:dim_raw]
     Ur = U[:,dim_raw-r:dim_raw]
     Z = np.diag(np.power(Vr,-1/2)) @ Ur.T
@@ -110,6 +112,10 @@ def run_sim(parameters):
     Zinv = Ur @ np.diag(np.power(Vr,1/2))
 
     data = (Ypp, beta)
+    atom_indices = list(range(r))
+    img_side = int(round(np.sqrt(Y.shape[0])))
+    assert img_side**2 == Y.shape[0], "Y must contain square images."
+    img_shape = (img_side,img_side)
 
     # Generate initial solution value, from Y
     A = np.eye(dim)
@@ -128,6 +134,8 @@ def run_sim(parameters):
     # Solve centralized problem
     centralized_min_grad_norm = 1e-10
     x_star, f_star = runSimCentralizedRBB(ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    A_star = np.hstack(x_star)
+    C_star = A_star.T @ Ypp[:,recon_indices]
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
@@ -169,6 +177,9 @@ def run_sim(parameters):
     norm_grad_synch = calculate_norm_grad(data, x_synch)
     sparsity = 100*calculate_sparsity(x, sparsity_threshold, data)
     sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold, data)
+    coherence_star = calculate_max_coherence(x_star)
+    coherence = calculate_max_coherence(x)
+    coherence_synch = calculate_max_coherence(x_synch)
     iteration_synch = 0
     changed_x = False
     changed_x_synch = False
@@ -181,12 +192,15 @@ def run_sim(parameters):
     data_norm_grad_synch = []
     data_sparsity = []
     data_sparsity_synch = []
+    data_coherence_star = []
+    data_coherence = []
+    data_coherence_synch = []
     ax1_y_min = 1e10
     ax1_y_max = 0
     ax2_y_min = 1e10
     ax2_y_max = 0
     if render_fig:
-        fig1, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18,5))
+        fig1, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(18,5))
         
         plot_f = ax1.plot([], [], "-r", label="f (asynch)")[0]
         plot_f_synch = ax1.plot([], [], "-b", label="f (synch)")[0]
@@ -203,34 +217,67 @@ def run_sim(parameters):
         ax3.set(xlabel="Iteration", ylabel="Sparsity", ylim=(0,100), title="sparsity (asynch): %.2E\nsparsity (synch): %.2E" % (0,0))
         ax3.legend(loc="upper left")
 
+        plot_max_coherence_star = ax4.plot([], [], "-g", label="coherence (star)")[0]
+        plot_max_coherence = ax4.plot([], [], "-r", label="coherence (asynch)")[0]
+        plot_max_coherence_synch = ax4.plot([], [], "-b", label="coherence (synch)")[0]
+        ax4.set(xlabel="Iteration", ylabel="Max Coherence", ylim=(0,1.1), title="Coherence:\nStar=%.2f\nAsynch=%.2f\nSynch=%.2f" % (0,0,0))
+        ax4.legend(loc="upper left")
+
         # Init reconstructions
-        reconstructions = []
-        axes_images = []
-        vmin = np.min(Y)
-        vmax = np.max(Y)
-        fig2, axes2 = plt.subplots(num_reconstructions, 3, figsize=(9/num_reconstructions*3,9))
-        axes2[0,0].set(title="True")
-        axes2[0,1].set(title="Asynch\nReconstructions")
-        axes2[0,2].set(title="Synch\nReconstructions")
-        img_side = int(round(np.sqrt(Y.shape[0])))
-        assert img_side**2 == Y.shape[0], "Y must contain square images."
-        img_shape = (img_side,img_side)
-        for i in range(num_reconstructions):
-            img = Y[:,reconstruction_indices[i]].reshape(img_shape)
-            axes2[i,0].imshow(img, cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
-            axes_image_asynch = axes2[i,1].imshow([[0]], cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
-            axes_image_synch  = axes2[i,2].imshow([[0]], cmap="gray", interpolation="nearest", vmin=vmin, vmax=vmax)
-            axes_images.append([axes_image_asynch, axes_image_synch])
-            reconstructions.append([[[0]], [[0]]])
-            for j in range(3):
-                axes2[i,j].set_axis_off()
+        v_min_Y = np.min(np.abs(Y))
+        v_max_Y = np.max(np.abs(Y))
+        fig2 = plt.figure(figsize=(18,5), layout="constrained")
+        subfigs2 = fig2.subfigures(1, 4, wspace=0.03)
+        recon_images = []
+        recon_rows = int(np.ceil(np.sqrt(len(recon_indices))))
+        recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+        for subfig, name in zip(subfigs2, ["Original", "Centralized", "Asynch", "Synch"]):
+            subfig.suptitle(name)
+            axes = subfig.subplots(recon_rows, recon_cols)
+            handles = []
+            for k, ax in enumerate(axes.flat):
+                ax.set_axis_off()
+                if k < r:
+                    handles.append(ax.imshow(np.zeros(img_shape), cmap="gray", interpolation="nearest", clim=(v_min_Y,v_max_Y)))
+            recon_images.append(handles)
+
+        # Original and top-m centralization reconstruction
+        for i in range(len(recon_indices)):
+            img_og = np.reshape(Y[:,[i]], img_shape)
+            recon_images[0][i].set(data=img_og)
+
+        Cm_star = np.zeros_like(C_star)
+        for i in range(len(recon_indices)):
+            index_i_star = np.argpartition(np.abs(C_star[:,i]),-m)[-m:]
+            Cm_star[index_i_star,i] = C_star[index_i_star,i]
+
+        for i in range(len(recon_indices)):
+            img_star = np.reshape(Zinv @ A_star @ Cm_star[:,[i]] + Y_mean, img_shape)
+            v_star = np.max(np.abs(img_star))
+            recon_images[1][i].set(data=img_star)
 
         # Init atoms
+        fig3 = plt.figure(figsize=(18,6), layout="constrained")
+        subfigs3 = fig3.subfigures(1, 3, wspace=0.03)
+        atom_images = []
+        atom_rows = int(np.ceil(np.sqrt(len(atom_indices))))
+        atom_cols = int(np.ceil(len(atom_indices)/atom_rows))
+        for subfig, name in zip(subfigs3, ["Centralized", "Asynch", "Synch"]):
+            subfig.suptitle(name)
+            axes = subfig.subplots(atom_rows, atom_cols)
+            handles = []
+            for k, ax in enumerate(axes.flat):
+                ax.set_axis_off()
+                if k < r:
+                    handles.append(ax.imshow(np.zeros(img_shape), cmap="gray", interpolation="nearest"))
+            atom_images.append(handles)
 
         fig1.canvas.draw()
         fig1.canvas.flush_events()
         fig2.canvas.draw()
         fig2.canvas.flush_events()
+        fig3.canvas.draw()
+        fig3.canvas.flush_events()
 
         if show_fig:
             plt.show(block=False)
@@ -325,6 +372,7 @@ def run_sim(parameters):
                 f = calculate_f(data, x)
                 norm_grad = calculate_norm_grad(data, x)
                 sparsity = 100*calculate_sparsity(x, sparsity_threshold, data)
+                coherence = calculate_max_coherence(x)
             
             # Check if x_synch needs to be recomputed
             if changed_x_synch:
@@ -337,6 +385,7 @@ def run_sim(parameters):
                 f_synch = calculate_f(data, x_synch)
                 norm_grad_synch = calculate_norm_grad(data, x_synch)
                 sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold, data)
+                coherence_synch = calculate_max_coherence(x_synch)
 
             data_iteration.append(k)
             data_f.append(f)
@@ -345,13 +394,16 @@ def run_sim(parameters):
             data_norm_grad_synch.append(norm_grad_synch)
             data_sparsity.append(sparsity)
             data_sparsity_synch.append(sparsity_synch)
+            data_coherence_star.append(coherence_star)
+            data_coherence.append(coherence)
+            data_coherence_synch.append(coherence_synch)
             ax1_y_min = min(ax1_y_min, min(f-f_star, f_synch-f_star))
             ax1_y_max = max(ax1_y_max, max(f-f_star, f_synch-f_star))
             ax2_y_min = min(ax2_y_min, min(norm_grad, norm_grad_synch))
             ax2_y_max = max(ax2_y_max, max(norm_grad, norm_grad_synch))
 
         # Update plots
-        if render_fig and k % render_mod == 0:
+        if render_fig and k % render_mod == 0 and k>0:
             print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
             print("\tf       - f_star = %.2E,\t norm_grad       = %.2E" % (f-f_star, norm_grad))
             print("\tf_synch - f_star = %.2E,\t norm_grad_synch = %.2E" % (f_synch-f_star, norm_grad_synch))
@@ -369,36 +421,62 @@ def run_sim(parameters):
             plot_sparsity_synch.set(xdata=data_iteration, ydata=np.array(data_sparsity_synch))
             ax3.set(xlim=(0,k), title="sparsity (asynch): %.2E\nsparsity (synch): %.2E" % (sparsity,sparsity_synch))
 
+            plot_max_coherence_star.set(xdata=data_iteration, ydata=np.array(data_coherence_star))
+            plot_max_coherence.set(xdata=data_iteration, ydata=np.array(data_coherence))
+            plot_max_coherence_synch.set(xdata=data_iteration, ydata=np.array(data_coherence_synch))
+            ax4.set(xlim=(0,k), title="Coherence:\nStar=%.2f\nAsynch=%.2f\nSynch=%.2f" % (coherence_star,coherence,coherence_synch))
+
             # Update reconstructions
             A = np.hstack(x)
-            C = A.T @ Ypp[:,reconstruction_indices]
+            C = A.T @ Ypp[:,recon_indices]
             A_synch = np.hstack(x_synch)
-            C_synch = A_synch.T @ Ypp[:,reconstruction_indices]
+            C_synch = A_synch.T @ Ypp[:,recon_indices]
 
             # Top-m reconstruction
             Cm = np.zeros_like(C)
             Cm_synch = np.zeros_like(C_synch)
-            for i in range(num_reconstructions):
-                index_i = np.argpartition(C[:,i],-m)[-m:]
-                index_i_synch = np.argpartition(C_synch[:,i],-m)[-m:]
+            for i in range(len(recon_indices)):
+                index_i = np.argpartition(np.abs(C[:,i]),-m)[-m:]
+                index_i_synch = np.argpartition(np.abs(C_synch[:,i]),-m)[-m:]
+                Cm_star[index_i_star,i] = C_star[index_i_star,i]
                 Cm[index_i,i] = C[index_i,i]
                 Cm_synch[index_i_synch,i] = C_synch[index_i_synch,i]
 
-            for i in range(num_reconstructions):
+            for i in range(len(recon_indices)):
                 img = np.reshape(Zinv @ A @ Cm[:,[i]] + Y_mean, img_shape)
-                img_synch = np.reshape(Zinv @ A_synch @ Cm_synch[:,[i]] + Y_mean, img_shape)
-                reconstructions[i][0] = img
-                reconstructions[i][1] = img_synch
+                v = np.max(np.abs(img))
+                recon_images[2][i].set(data=img)
 
-            # Render reconstructions
-            for i in range(num_reconstructions):
-                axes_images[i][0].set(data=reconstructions[i][0])
-                axes_images[i][1].set(data=reconstructions[i][1])
+                img_synch = np.reshape(Zinv @ A_synch @ Cm_synch[:,[i]] + Y_mean, img_shape)
+                v_synch = np.max(np.abs(img_synch))
+                recon_images[3][i].set(data=img_synch)
+
+            # Update atom reconstructions
+            _, index = linear_sum_assignment(-np.abs(A_star.T @ A))
+            _, index_synch = linear_sum_assignment(-np.abs(A_star.T @ A_synch))
+            for i in atom_indices:
+                a_star = np.reshape(Zinv @ A_star[:,i], img_shape)
+                a_star *= np.sign(a_star.flat[np.argmax(np.abs(a_star))])
+                v_star = np.max(np.abs(a_star))
+                atom_images[0][i].set(data=a_star, clim=(-v_star,v_star))
+
+                a = np.reshape(Zinv @ A[:,index[i]], img_shape)
+                a *= np.sign(a.flat[np.argmax(np.abs(a))])
+                v = np.max(np.abs(a))
+                atom_images[1][i].set(data=a, clim=(-v,v))
+                
+                a_synch = np.reshape(Zinv @ A_synch[:,index_synch[i]], img_shape)
+                a_synch *= np.sign(a_synch.flat[np.argmax(np.abs(a_synch))])
+                v_synch = np.max(np.abs(a_synch))
+                atom_images[2][i].set(data=a_synch, clim=(-v_synch,v_synch))
+
 
             fig1.canvas.draw()
             fig1.canvas.flush_events()
             fig2.canvas.draw()
             fig2.canvas.flush_events()
+            fig3.canvas.draw()
+            fig3.canvas.flush_events()
 
 
     time_end = time.time()
@@ -440,6 +518,51 @@ def run_sim(parameters):
 
 
 if __name__ == "__main__":
+    # default_parameters = {
+    #     "rng_seed" : 0,
+    #     "N" : 10,
+    #     "B_comp1" : 2,
+    #     "B_comp2" : 10,
+    #     "B_comm" : 50,
+    #     "kmax" : 50000,
+    #     "eta" : 0.001,
+    #     "eta_synch" : 0.001,
+    #     "beta" : 10,
+    #     "sparsity_threshold" : 0.01,
+    #     "m" : 5,
+    #     "r" : 40,
+    #     # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
+    #     "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("digits.npy").resolve()),
+    #     "show_fig" : True,
+    #     "save_final_fig" : False,
+    #     "save_final_fig_name" : None,
+    #     "save_video" : False,
+    #     "save_video_name" : None,
+    #     "save_data" : False,
+    #     "save_data_name" : None,
+    # }
+    # default_parameters = {
+    #     "rng_seed" : 0,
+    #     "N" : 10,
+    #     "B_comp1" : 2,
+    #     "B_comp2" : 10,
+    #     "B_comm" : 50,
+    #     "kmax" : 50000,
+    #     "eta" : 0.001,
+    #     "eta_synch" : 0.001,
+    #     "beta" : 20,
+    #     "sparsity_threshold" : 0.01,
+    #     "m" : 5,
+    #     "r" : 40,
+    #     "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("usps.npy").resolve()),
+    #     "show_fig" : True,
+    #     "save_final_fig" : False,
+    #     "save_final_fig_name" : None,
+    #     "save_video" : False,
+    #     "save_video_name" : None,
+    #     "save_data" : False,
+    #     "save_data_name" : None,
+    # }
     default_parameters = {
         "rng_seed" : 0,
         "N" : 10,
@@ -449,11 +572,11 @@ if __name__ == "__main__":
         "kmax" : 50000,
         "eta" : 0.001,
         "eta_synch" : 0.001,
-        "beta" : 10,
+        "beta" : 20,
         "sparsity_threshold" : 0.01,
         "m" : 5,
-        # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
-        "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("digits.npy").resolve()),
+        "r" : 55,
+        "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("fashion_mnist.npy").resolve()),
         "show_fig" : True,
         "save_final_fig" : False,
         "save_final_fig_name" : None,
