@@ -11,6 +11,17 @@ class Manifold(ABC):
     def proj(self, x, v):
         pass
 
+    @abstractmethod
+    def inner_product(self, u, v):
+        pass
+
+    def norm(self, v):
+        return np.sqrt(self.inner_product(v, v))
+
+    @abstractmethod
+    def inner_product(self, x1, x2, v1):
+        pass
+
 
 class EuclideanManifold(Manifold):
     def exp(self, x, v):
@@ -40,17 +51,6 @@ class SphereManifold(Manifold):
     def proj(self, x, v):
         x = x/np.linalg.norm(x)
         return v - x * (x.T@v).item()
-
-
-class UnitQuaternionManifold(Manifold):
-    def exp(self, x, v):
-        x = x/np.linalg.norm(x)
-        norm_v = np.linalg.norm(v)
-        return x*np.cos(norm_v) + v*np.sin(norm_v) / (norm_v if norm_v > 0 else 1)
-
-    def proj(self, x, v):
-        x = x/np.linalg.norm(x)
-        return (np.eye(4) - x@x.T) @ v
 
 
 class ProductManifold(Manifold):

@@ -96,6 +96,7 @@ def run_sim(parameters):
     # Preprocess data
     Z = 1/num_samples * np.linalg.inv(scipy.linalg.sqrtm(Y@Y.T))
     Y = Z @ Y
+    data = (Y, beta)
 
     # Generate initial solution value, from Y
     A = np.eye(dim)
@@ -119,7 +120,6 @@ def run_sim(parameters):
     # Initialize agents
     agents = []
     agents_synch = []
-    data = (Y, beta)
     for i in range(N):
         agents.append(Agent(i, ObliqueManifold(), x_initial, eta, data, calculate_euclidean_grad))
         agents_synch.append(SynchAgent(i, ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad))

@@ -8,7 +8,7 @@ import cv2
 from pathlib import Path
 
 
-from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, UnitQuaternionManifold, ProductManifold
+from asynch_opt_on_manifolds.Utils.Manifolds import EuclideanManifold, SphereManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat, partial_rot_mat_partial_quat
@@ -182,8 +182,8 @@ def run_sim(parameters):
     # Solve centralized problem
     centralized_min_grad_norm = 1e-10
     # print("Solving centralized problem...")
-    # f_star = runSimCentralizedRGD(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, 100000, centralized_min_grad_norm)
-    f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    # f_star = runSimCentralizedRGD(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, 100000, centralized_min_grad_norm)
+    f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
     # f_star = 1.88e-2
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
@@ -191,8 +191,8 @@ def run_sim(parameters):
     agents = []
     agents_synch = []
     for i in range(N):
-        agents.append(Agent(i, ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta, data, calculate_euclidean_grad))
-        agents_synch.append(SynchAgent(i, ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad))
+        agents.append(Agent(i, ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta, data, calculate_euclidean_grad))
+        agents_synch.append(SynchAgent(i, ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad))
 
     # Initialize mailboxes
     mailbox_outgoing = list(x_initial)
