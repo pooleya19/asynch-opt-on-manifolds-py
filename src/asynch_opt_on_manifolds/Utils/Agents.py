@@ -1,5 +1,5 @@
 import numpy as np
-from asynch_opt_on_manifolds.Utils.ManifoldUtils import scale_manifold_point, freeze_manifold_point
+from asynch_opt_on_manifolds.Utils.ManifoldUtils import scale_tangent_vector, freeze_manifold_point
 
 
 class Agent:
@@ -20,7 +20,7 @@ class Agent:
         grad_xi = self.manifold.proj(self.x[self.i], euc_grad_xi)
 
         # Perform gradient step
-        scaled_grad_xi = scale_manifold_point(grad_xi, -self.eta)
+        scaled_grad_xi = scale_tangent_vector(grad_xi, -self.eta)
         self.x[self.i] = freeze_manifold_point(self.manifold.exp(self.x[self.i], scaled_grad_xi))
 
 
@@ -47,7 +47,7 @@ class SynchAgent:
                 grad_xi = self.manifold.proj(self.x[self.i], euc_grad_xi)
 
                 # Perform gradient step
-                scaled_grad_xi = scale_manifold_point(grad_xi, -self.eta)
+                scaled_grad_xi = scale_tangent_vector(grad_xi, -self.eta)
                 self.next_x[self.i] = freeze_manifold_point(self.manifold.exp(self.x[self.i], scaled_grad_xi))
 
                 # Update buffers

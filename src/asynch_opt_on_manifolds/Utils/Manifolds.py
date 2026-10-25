@@ -19,7 +19,7 @@ class Manifold(ABC):
         return np.sqrt(self.inner_product(v, v))
 
     @abstractmethod
-    def inner_product(self, x1, x2, v1):
+    def transport(self, x1, x2, v1):
         pass
 
 
@@ -29,6 +29,12 @@ class EuclideanManifold(Manifold):
 
     def proj(self, x, v):
         return v
+
+    def inner_product(self, u, v):
+        return np.trace(u.T @ v)
+
+    def transport(self, x1, x2, v1):
+        return v1
 
 
 class ObliqueManifold(Manifold):
@@ -41,6 +47,12 @@ class ObliqueManifold(Manifold):
         x = x/np.linalg.norm(x,axis=0)
         return v - x * np.sum(x*v, axis=0, keepdims=True)
 
+    def inner_product(self, u, v):
+        return np.trace(u.T @ v)
+
+    def transport(self, x1, x2, v1):
+        return self.proj(x2, v1)
+
 
 class SphereManifold(Manifold):
     def exp(self, x, v):
@@ -51,6 +63,12 @@ class SphereManifold(Manifold):
     def proj(self, x, v):
         x = x/np.linalg.norm(x)
         return v - x * (x.T@v).item()
+
+    def inner_product(self, u, v):
+        return (u.T @ v).item()
+
+    def transport(self, x1, x2, v1):
+        return self.proj(x2, v1)
 
 
 class ProductManifold(Manifold):
@@ -63,3 +81,9 @@ class ProductManifold(Manifold):
 
     def proj(self, x, v):
         return [self.manifolds[i].proj(x[i], v[i]) for i in range(len(self.manifolds))]
+
+    def inner_product(self, u, v):
+        return sum(self.manifolds[i].inner_product(u[i], v[i]) for i in range(len(self.manifolds)))
+
+    def transport(self, x1, x2, v1):
+        return [self.manifolds[i].transport(x1[i], x2[i], v1[i]) for i in range(len(self.manifolds))]

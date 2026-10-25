@@ -236,7 +236,7 @@ def run_sim(parameters):
         ax1.set(xlabel="Iteration", ylabel="f - fstar", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
         ax1.legend(loc="lower left")
 
-        fig2, ax_form = plt.subplots(2, 2, figsize=(10,10), subplot_kw={"projection": "3d"})
+        fig2, ax_form = plt.subplots(2, 2, figsize=(10,10), dpi=150, subplot_kw={"projection": "3d"})
         ((ax_form_des, ax_form_init), (ax_form_asynch, ax_form_synch)) = ax_form
         axes_length = 0.1
         axes_linewidth = 1.5
@@ -485,11 +485,11 @@ if __name__ == "__main__":
         "delta" : 1,
         "show_fig" : True,
         "save_final_fig" : False,
-        "save_final_fig_name" : None,
+        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("figure.pdf")),
         "save_video" : False,
-        "save_video_name" : None,
+        "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("video.mp4")),
         "save_data" : False,
-        "save_data_name" : None,
+        "save_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("formation_control").joinpath("data.json")),
     }
 
     from threadpoolctl import threadpool_limits
