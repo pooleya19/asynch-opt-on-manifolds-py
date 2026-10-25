@@ -13,7 +13,7 @@ from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat, partial_rot_mat_partial_quat
 from asynch_opt_on_manifolds.RobustFormationControl.Formations import generateFormationLattice
-from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRGD, runSimCentralizedRBB
+from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRBB
 
 
 def calculate_euclidean_grad(agent):
@@ -180,7 +180,7 @@ def run_sim(parameters):
     freeze_manifold_point(x_initial)
 
     # Solve centralized problem
-    centralized_min_grad_norm = 1e-12
+    centralized_min_grad_norm = 1e-10
     # print("Solving centralized problem...")
     # f_star = runSimCentralizedRGD(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, 100000, centralized_min_grad_norm)
     f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), UnitQuaternionManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
@@ -297,7 +297,7 @@ def run_sim(parameters):
         fi2_width, fig2_height = fig2.canvas.get_width_height(physical=True)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
         os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
-        video = cv2.VideoWriter(save_video_name, fourcc, 30.0, (fi2_width, fig2_height))
+        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (fi2_width, fig2_height))
 
 
     # Init map for tracking x_synch
@@ -407,9 +407,9 @@ def run_sim(parameters):
         # Update plots
         if render_fig and k % render_mod == 0:
             if ax1_y_min < ax1_y_max:
-                print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
-                print("\tf       - f_star = %.2E" % (f-f_star))
-                print("\tf_synch - f_star = %.2E" % (f_synch-f_star))
+                # print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
+                # print("\tf       - f_star = %.2E" % (f-f_star))
+                # print("\tf_synch - f_star = %.2E" % (f_synch-f_star))
 
                 plot_f.set(xdata=data_iteration, ydata=np.array(data_f)-f_star)
                 plot_f_synch.set(xdata=data_iteration, ydata=np.array(data_f_synch)-f_star)
@@ -477,7 +477,7 @@ if __name__ == "__main__":
         "N" : 32,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 1000,
+        "B_comm" : 500,
         "kmax" : 10000,
         "eta" : 0.2,
         "eta_synch" : 0.2,
