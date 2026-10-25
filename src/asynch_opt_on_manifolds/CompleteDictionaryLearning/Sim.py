@@ -5,7 +5,7 @@ import time
 import os
 from pathlib import Path
 
-from asynch_opt_on_manifolds.Utils.Manifolds import ObliqueManifold
+from asynch_opt_on_manifolds.Utils.Manifolds import ObliqueManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRBB
@@ -54,7 +54,6 @@ def calculate_sparsity(x, threshold_percent, data):
     # return np.mean((C.shape[0] - l1_l2_ratio) / (C.shape[0] - 1))
 
 
-
 def run_sim(parameters):
     time_start = time.time()
 
@@ -69,6 +68,7 @@ def run_sim(parameters):
     eta_synch = parameters["eta_synch"]
     beta = parameters["beta"]
     sparsity_threshold = parameters["sparsity_threshold"]
+    m = parameters["m"]
     data_file_name = parameters["data_file_name"]
     show_fig = parameters["show_fig"]
     save_final_fig = parameters["save_final_fig"]
@@ -82,21 +82,34 @@ def run_sim(parameters):
     render_fig = show_fig or save_video or save_final_fig
     compute_metrics_mod = 10
     render_mod = 100
-    reconstruction_indices = [4,1,3]
+    # reconstruction_indices = [4,1,3]
+    reconstruction_indices = [0,1,2,3,4,5,6,7,8,9]
     num_reconstructions = len(reconstruction_indices)
-    
+    atom_indices = list(range(20))
 
     # Init RNG
     rng_sim = np.random.default_rng(seed=rng_seed)
 
     # Load data
     Y = np.load(data_file_name)
-    dim, num_samples = Y.shape
+    dim_raw, num_samples = Y.shape
 
     # Preprocess data
-    Z = 1/num_samples * np.linalg.inv(scipy.linalg.sqrtm(Y@Y.T))
-    Y = Z @ Y
-    data = (Y, beta)
+    Y_mean = np.mean(Y, axis=1, keepdims=True)
+    Y_cov = 1/num_samples * (Y - Y_mean) @ (Y - Y_mean).T
+    V, U = np.linalg.eigh(Y_cov)
+    # r = int(np.floor(dim_raw*0.96))
+    r = 40
+    Vr = V[dim_raw-r:dim_raw]
+    Ur = U[:,dim_raw-r:dim_raw]
+    Z = np.diag(np.power(Vr,-1/2)) @ Ur.T
+    Ypp = Z @ (Y - Y_mean)
+    dim = r
+    pp_error = np.linalg.norm(1/num_samples * Ypp @ Ypp.T - np.eye(r))
+    assert pp_error <= 1e-10, "Data pre-processed incorrectly (error = %.2E)" % pp_error
+    Zinv = Ur @ np.diag(np.power(Vr,1/2))
+
+    data = (Ypp, beta)
 
     # Generate initial solution value, from Y
     A = np.eye(dim)
@@ -113,8 +126,8 @@ def run_sim(parameters):
     freeze_manifold_point(x_initial)
 
     # Solve centralized problem
-    centralized_min_grad_norm = 1e-12
-    f_star = runSimCentralizedRBB(ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    centralized_min_grad_norm = 1e-10
+    x_star, f_star = runSimCentralizedRBB(ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
@@ -123,6 +136,10 @@ def run_sim(parameters):
     for i in range(N):
         agents.append(Agent(i, ObliqueManifold(), x_initial, eta, data, calculate_euclidean_grad))
         agents_synch.append(SynchAgent(i, ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad))
+
+    product_manifold = ProductManifold([ObliqueManifold() for i in range(N)])
+    initial_rie_grad = product_manifold.proj(x_initial, [calculate_euclidean_grad(agents[i]) for i in range(N)])
+    print("Initial grad norm = %.2E" % (product_manifold.norm(initial_rie_grad)))
 
     # Initialize mailboxes
     mailbox_outgoing = list(x_initial)
@@ -148,6 +165,10 @@ def run_sim(parameters):
     x_synch = list(x_initial)
     f = calculate_f(data, x)
     f_synch = calculate_f(data, x_synch)
+    norm_grad = calculate_norm_grad(data, x)
+    norm_grad_synch = calculate_norm_grad(data, x_synch)
+    sparsity = 100*calculate_sparsity(x, sparsity_threshold, data)
+    sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold, data)
     iteration_synch = 0
     changed_x = False
     changed_x_synch = False
@@ -156,17 +177,31 @@ def run_sim(parameters):
     data_iteration = []
     data_f = []
     data_f_synch = []
+    data_norm_grad = []
+    data_norm_grad_synch = []
     data_sparsity = []
     data_sparsity_synch = []
     ax1_y_min = 1e10
     ax1_y_max = 0
+    ax2_y_min = 1e10
+    ax2_y_max = 0
     if render_fig:
-        fig1, (ax1) = plt.subplots(1, 1, figsize=(8,5))
-
+        fig1, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18,5))
+        
         plot_f = ax1.plot([], [], "-r", label="f (asynch)")[0]
         plot_f_synch = ax1.plot([], [], "-b", label="f (synch)")[0]
         ax1.set(xlabel="Iteration", ylabel="Objective Function", yscale="log", title="F (asynch): %.2E\nF (synch): %.2E" % (0,0))
         ax1.legend(loc="lower left")
+        
+        plot_norm_grad = ax2.plot([], [], "-r", label="norm grad (asynch)")[0]
+        plot_norm_grad_synch = ax2.plot([], [], "-b", label="norm grad (synch)")[0]
+        ax2.set(xlabel="Iteration", ylabel="Gradient Norm", yscale="log", title="norm grad (asynch): %.2E\nnorm grad (synch): %.2E" % (0,0))
+        ax2.legend(loc="lower left")
+        
+        plot_sparsity = ax3.plot([], [], "-r", label="sparsity (asynch)")[0]
+        plot_sparsity_synch = ax3.plot([], [], "-b", label="sparsity (synch)")[0]
+        ax3.set(xlabel="Iteration", ylabel="Sparsity", ylim=(0,100), title="sparsity (asynch): %.2E\nsparsity (synch): %.2E" % (0,0))
+        ax3.legend(loc="upper left")
 
         # Init reconstructions
         reconstructions = []
@@ -189,6 +224,8 @@ def run_sim(parameters):
             reconstructions.append([[[0]], [[0]]])
             for j in range(3):
                 axes2[i,j].set_axis_off()
+
+        # Init atoms
 
         fig1.canvas.draw()
         fig1.canvas.flush_events()
@@ -286,6 +323,7 @@ def run_sim(parameters):
 
                 # Recompute f
                 f = calculate_f(data, x)
+                norm_grad = calculate_norm_grad(data, x)
                 sparsity = 100*calculate_sparsity(x, sparsity_threshold, data)
             
             # Check if x_synch needs to be recomputed
@@ -297,63 +335,85 @@ def run_sim(parameters):
 
                 # Recompute f_synch
                 f_synch = calculate_f(data, x_synch)
+                norm_grad_synch = calculate_norm_grad(data, x_synch)
                 sparsity_synch = 100*calculate_sparsity(x_synch, sparsity_threshold, data)
 
             data_iteration.append(k)
             data_f.append(f)
             data_f_synch.append(f_synch)
+            data_norm_grad.append(norm_grad)
+            data_norm_grad_synch.append(norm_grad_synch)
             data_sparsity.append(sparsity)
             data_sparsity_synch.append(sparsity_synch)
             ax1_y_min = min(ax1_y_min, min(f-f_star, f_synch-f_star))
             ax1_y_max = max(ax1_y_max, max(f-f_star, f_synch-f_star))
+            ax2_y_min = min(ax2_y_min, min(norm_grad, norm_grad_synch))
+            ax2_y_max = max(ax2_y_max, max(norm_grad, norm_grad_synch))
 
         # Update plots
         if render_fig and k % render_mod == 0:
+            print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
+            print("\tf       - f_star = %.2E,\t norm_grad       = %.2E" % (f-f_star, norm_grad))
+            print("\tf_synch - f_star = %.2E,\t norm_grad_synch = %.2E" % (f_synch-f_star, norm_grad_synch))
             if ax1_y_min < ax1_y_max:
-                print("Iteration %g, Synch Iteration %g:" % (k, iteration_synch))
-                print("\tf       - f_star = %.2E" % (f-f_star))
-                print("\tf_synch - f_star = %.2E" % (f_synch-f_star))
-
                 plot_f.set(xdata=data_iteration, ydata=np.array(data_f)-f_star)
                 plot_f_synch.set(xdata=data_iteration, ydata=np.array(data_f_synch)-f_star)
                 ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
 
-                # Update reconstructions
-                A = np.hstack(x)
-                C = A.T @ Y[:,reconstruction_indices]
-                A_synch = np.hstack(x_synch)
-                C_synch = A_synch.T @ Y[:,reconstruction_indices]
+            if ax2_y_min < ax2_y_max:
+                plot_norm_grad.set(xdata=data_iteration, ydata=np.array(data_norm_grad))
+                plot_norm_grad_synch.set(xdata=data_iteration, ydata=np.array(data_norm_grad_synch))
+                ax2.set(xlim=(0,k), ylim=(ax2_y_min,ax2_y_max), title="norm grad (asynch): %.2E\nnorm grad (synch): %.2E" % (norm_grad,norm_grad_synch))
 
-                for i in range(num_reconstructions):
-                    img = np.reshape(A @ C[:,i], img_shape)
-                    img_synch = np.reshape(A_synch @ C_synch[:,i], img_shape)
-                    reconstructions[i][0] = img
-                    reconstructions[i][1] = img_synch
+            plot_sparsity.set(xdata=data_iteration, ydata=np.array(data_sparsity))
+            plot_sparsity_synch.set(xdata=data_iteration, ydata=np.array(data_sparsity_synch))
+            ax3.set(xlim=(0,k), title="sparsity (asynch): %.2E\nsparsity (synch): %.2E" % (sparsity,sparsity_synch))
 
-                # Render reconstructions
-                for i in range(num_reconstructions):
-                    axes_images[i][0].set(data=reconstructions[i][0])
-                    axes_images[i][1].set(data=reconstructions[i][1])
+            # Update reconstructions
+            A = np.hstack(x)
+            C = A.T @ Ypp[:,reconstruction_indices]
+            A_synch = np.hstack(x_synch)
+            C_synch = A_synch.T @ Ypp[:,reconstruction_indices]
 
-                fig1.canvas.draw()
-                fig1.canvas.flush_events()
-                fig2.canvas.draw()
-                fig2.canvas.flush_events()
+            # Top-m reconstruction
+            Cm = np.zeros_like(C)
+            Cm_synch = np.zeros_like(C_synch)
+            for i in range(num_reconstructions):
+                index_i = np.argpartition(C[:,i],-m)[-m:]
+                index_i_synch = np.argpartition(C_synch[:,i],-m)[-m:]
+                Cm[index_i,i] = C[index_i,i]
+                Cm_synch[index_i_synch,i] = C_synch[index_i_synch,i]
+
+            for i in range(num_reconstructions):
+                img = np.reshape(Zinv @ A @ Cm[:,[i]] + Y_mean, img_shape)
+                img_synch = np.reshape(Zinv @ A_synch @ Cm_synch[:,[i]] + Y_mean, img_shape)
+                reconstructions[i][0] = img
+                reconstructions[i][1] = img_synch
+
+            # Render reconstructions
+            for i in range(num_reconstructions):
+                axes_images[i][0].set(data=reconstructions[i][0])
+                axes_images[i][1].set(data=reconstructions[i][1])
+
+            fig1.canvas.draw()
+            fig1.canvas.flush_events()
+            fig2.canvas.draw()
+            fig2.canvas.flush_events()
 
 
     time_end = time.time()
     time_elapsed = time_end - time_start
 
-    # if show_fig:
-    #     if save_fig:
-    #         print("Saving figure... ", end='', flush=True)
-    #         Path(save_directory_path).mkdir(parents=True, exist_ok=True)
-    #         fig_path = str(Path(save_directory_path).joinpath(save_fig_name).resolve())
-    #         fig2.savefig(fig_path, format="svg")
-    #         print("Done!")
+    if show_fig:
+        # if save_fig:
+        #     print("Saving figure... ", end='', flush=True)
+        #     Path(save_directory_path).mkdir(parents=True, exist_ok=True)
+        #     fig_path = str(Path(save_directory_path).joinpath(save_fig_name).resolve())
+        #     fig2.savefig(fig_path, format="svg")
+        #     print("Done!")
 
-    #     print("Finished simulation. Close figure to quit.")
-    #     plt.show(block=True)
+        print("Finished simulation. Close figure to quit.")
+        plt.show(block=True)
 
     # if save_output:
     #     file_path = os.path.join(save_directory_path, save_file_name)
@@ -386,12 +446,14 @@ if __name__ == "__main__":
         "B_comp1" : 2,
         "B_comp2" : 10,
         "B_comm" : 50,
-        "kmax" : 10000,
+        "kmax" : 50000,
         "eta" : 0.001,
         "eta_synch" : 0.001,
-        'beta' : 0.001,
-        "sparsity_threshold" : 0.005,
-        "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
+        "beta" : 10,
+        "sparsity_threshold" : 0.01,
+        "m" : 5,
+        # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
+        "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("digits.npy").resolve()),
         "show_fig" : True,
         "save_final_fig" : False,
         "save_final_fig_name" : None,

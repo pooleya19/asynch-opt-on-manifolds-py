@@ -183,7 +183,7 @@ def run_sim(parameters):
     centralized_min_grad_norm = 1e-10
     # print("Solving centralized problem...")
     # f_star = runSimCentralizedRGD(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, 100000, centralized_min_grad_norm)
-    f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    _, f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
     # f_star = 1.88e-2
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 

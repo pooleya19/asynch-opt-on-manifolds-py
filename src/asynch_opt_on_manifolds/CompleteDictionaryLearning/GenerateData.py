@@ -30,7 +30,6 @@ def saveSyntheticData(dim, num_samples, save_directory, file_name):
     print("Done!")
 
 
-
 def saveDigitsData(k, save_directory, file_name):
     print("Saving digits... ", end='', flush=True)
     X, _ = load_digits(return_X_y=True)
@@ -73,8 +72,8 @@ def saveFashionMNISTData(k, save_directory, file_name):
 def main():
     save_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset")
     save_directory_path.mkdir(parents=True, exist_ok=True)
-    saveSyntheticData(36, 500, save_directory_path, "synthetic.npy")
-    # saveDigitsData(1500, save_directory_path, "digits.npy")
+    saveSyntheticData(36, 10000, save_directory_path, "synthetic.npy")
+    saveDigitsData(1500, save_directory_path, "digits.npy")
     # saveUSPSData(5000, save_directory_path, "usps.npy")
     # saveFashionMNISTData(10000, save_directory_path, "fashion_mnist.npy")
 
