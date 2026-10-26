@@ -11,7 +11,6 @@ from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRBB
 from scipy.optimize import linear_sum_assignment
-from scipy.stats import ortho_group
 
 def calculate_euclidean_grad(agent):
     Y, beta = agent.data
@@ -78,15 +77,15 @@ def run_sim(parameters):
     r = parameters["r"]
     data_file_name = parameters["data_file_name"]
     show_fig = parameters["show_fig"]
-    save_final_fig = parameters["save_final_fig"]
-    save_final_fig_name = parameters["save_final_fig_name"]
+    save_final_fig_data = parameters["save_final_fig_data"]
+    save_final_fig_data_name = parameters["save_final_fig_data_name"]
     save_video = parameters["save_video"]
     save_video_name = parameters["save_video_name"]
     save_data = parameters["save_data"]
     save_data_name = parameters["save_data_name"]
 
     # Define parameters
-    render_fig = show_fig or save_video or save_final_fig
+    render_fig = show_fig or save_video
     compute_metrics_mod = 50
     render_mod = 100
     # recon_indices = [1,5,6,7,9,11,15,16,20]
@@ -236,9 +235,9 @@ def run_sim(parameters):
         recon_rows = 5
         recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
         if recon_centralized:
-            recon_names = ["Original", "Centralized", "Asynchronous", "Synchronous"]
+            recon_names = ["Original", "Centralized", "Algorithm 1", "RGD"]
         else:
-            recon_names = ["Original", "Asynchronous", "Synchronous"]
+            recon_names = ["Original", "Reconstruction\n(Algorithm 1)", "Reconstruction\n(RGD)"]
         for subfig, name in zip(subfigs2, recon_names):
             subfig.suptitle(name)
             # subfig.supylabel(name)
@@ -497,13 +496,28 @@ def run_sim(parameters):
                 img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 video.write(img_bgr)
 
+    # Post run, solve centralized from both solutions
+    _, f_star1 = runSimCentralizedRBB(ObliqueManifold(), x, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    _, f_star2 = runSimCentralizedRBB(ObliqueManifold(), x_synch, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    f_star = min(f_star, min(f_star1, f_star2))
+        
 
     time_end = time.time()
     time_elapsed = time_end - time_start
 
-    if save_final_fig:
-        os.makedirs(os.path.dirname(save_final_fig_name), exist_ok=True)
-        fig2.savefig(save_final_fig_name, format="pdf")
+    if save_final_fig_data:
+        os.makedirs(os.path.dirname(save_final_fig_data_name), exist_ok=True)
+        final_fig_data = {"Y" : Y,
+                          "Ypp" : Ypp,
+                          "Y_mean" : Y_mean,
+                          "img_shape" : img_shape,
+                          "Zinv" : Zinv,
+                          "x" : x,
+                          "x_synch" : x_synch}
+        
+        with open(save_final_fig_data_name, "w") as file:
+            json.dump(final_fig_data, file)
+        
 
     if save_video:
         video.release()
@@ -550,8 +564,8 @@ if __name__ == "__main__":
         # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("usps.npy").resolve()),
         "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("fashion_mnist.npy").resolve()),
         "show_fig" : True,
-        "save_final_fig" : False,
-        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning").joinpath("figure.pdf")),
+        "save_final_fig_data" : False,
+        "save_final_fig_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning").joinpath("figure_data.json")),
         "save_video" : False,
         "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning").joinpath("video.mp4")),
         "save_data" : False,

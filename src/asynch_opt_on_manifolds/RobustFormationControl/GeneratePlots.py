@@ -1,6 +1,15 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+# plt.rcParams["mathtext.fontset"] = "cm"
+plt.rcParams.update({
+    "mathtext.fontset" : "cm", 
+    "axes.labelsize": 14,    # axis labels
+    "axes.titlesize": 14,    # subplot titles
+    "xtick.labelsize": 12,   # tick numbers
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+})
 from matplotlib.lines import Line2D
 from pathlib import Path
 import json
@@ -41,7 +50,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     # Plot
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_varied_parameter_values))[:,0:3] # jet, viridis, rainbow
     fig, (ax) = plt.subplots(1,1, figsize=figsize)
-    ax.set(xlabel="Iterations", ylabel="f - fstar", yscale="log")
+    ax.set(xlabel="Iteration,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
 
     # Get iterations
     iterations = np.array(results_dict[(rng_seed_values[0], varied_parameter_values[0])]["iterations"])
@@ -83,7 +92,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     color_labels = ["%s=%g"%(varied_parameter_label,varied_parameter_values[i]) for i in range(num_varied_parameter_values)]
     style_handles = [Line2D([], [], color="black", linestyle="-", linewidth=2),
                       Line2D([], [], color="black", linestyle=":", linewidth=2)]
-    style_labels = ["Asynch", "Synch"]
+    style_labels = ["Algorithm 1", "RGD"]
 
     leg1 = ax.legend(color_handles, color_labels, loc="lower left")
     ax.add_artist(leg1)

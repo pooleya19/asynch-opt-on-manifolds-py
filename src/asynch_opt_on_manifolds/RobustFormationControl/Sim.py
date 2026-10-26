@@ -146,15 +146,15 @@ def run_sim(parameters):
     alpha = parameters["alpha"]
     delta = parameters["delta"]
     show_fig = parameters["show_fig"]
-    save_final_fig = parameters["save_final_fig"]
-    save_final_fig_name = parameters["save_final_fig_name"]
+    save_final_fig_data = parameters["save_final_fig_data"]
+    save_final_fig_data_name = parameters["save_final_fig_data_name"]
     save_video = parameters["save_video"]
     save_video_name = parameters["save_video_name"]
     save_data = parameters["save_data"]
     save_data_name = parameters["save_data_name"]
 
     # Define parameters
-    render_fig = show_fig or save_video or save_final_fig
+    render_fig = show_fig or save_video
     compute_metrics_mod = 10
     render_mod = 100
 
@@ -269,7 +269,7 @@ def run_sim(parameters):
         ax_form_asynch.add_collection3d(ax_form_asynch_axes_y)
         ax_form_asynch.add_collection3d(ax_form_asynch_axes_z)
         ax_form_asynch.add_collection3d(ax_form_asynch_edges)
-        ax_form_asynch.set(title="Poses (Asynch)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
+        ax_form_asynch.set(title="Final Poses (Algorithm 1)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
         
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
         ax_form_synch_positions = ax_form_synch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
@@ -281,7 +281,7 @@ def run_sim(parameters):
         ax_form_synch.add_collection3d(ax_form_synch_axes_y)
         ax_form_synch.add_collection3d(ax_form_synch_axes_z)
         ax_form_synch.add_collection3d(ax_form_synch_edges)
-        ax_form_synch.set(title="Poses (Synch)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
+        ax_form_synch.set(title="Final Poses (RGD)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
 
         fig1.canvas.draw()
         fig1.canvas.flush_events()
@@ -439,13 +439,27 @@ def run_sim(parameters):
                     img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                     video.write(img_bgr)
 
+    # Post run, solve centralized from both solutions
+    _, f_star1 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    _, f_star2 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_synch, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    f_star = min(f_star, min(f_star1, f_star2))
+
 
     time_end = time.time()
     time_elapsed = time_end - time_start
 
-    if save_final_fig:
-        os.makedirs(os.path.dirname(save_final_fig_name), exist_ok=True)
-        fig2.savefig(save_final_fig_name, format="pdf")
+    if save_final_fig_data:
+        os.makedirs(os.path.dirname(save_final_fig_data_name), exist_ok=True)
+        final_fig_data = {"x_formation" : x_formation,
+                          "x_initial" : x_initial,
+                          "x" : x,
+                          "x_synch" : x_synch,
+                          "formation_edges" : formation_edges,
+                          }
+        
+        with open(save_final_fig_data_name, "w") as file:
+            json.dump(final_fig_data, file)
+
 
     if save_video:
         video.release()
@@ -484,8 +498,8 @@ if __name__ == "__main__":
         "alpha" : 1e-4,
         "delta" : 1,
         "show_fig" : True,
-        "save_final_fig" : False,
-        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("figure.pdf")),
+        "save_final_fig_data" : False,
+        "save_final_fig_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("formation_control").joinpath("figure_data.json")),
         "save_video" : False,
         "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("formation_control").joinpath("video.mp4")),
         "save_data" : False,

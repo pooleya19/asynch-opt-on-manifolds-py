@@ -1,39 +1,21 @@
 import multiprocessing
 from pathlib import Path
+from threadpoolctl import threadpool_limits
 
 from asynch_opt_on_manifolds.RobustFormationControl.Sim import run_sim
 
 
 def run_sim_safely(parameters):
     try:
+        threadpool_limits(1, "blas")
         return run_sim(parameters)
-    except:
+    except Exception:
+        import traceback
+        traceback.print_exc()
         return None
 
 
 def main():
-    # # 2026/10/23
-    # default_parameters = {
-    #     "rng_seed" : 0,
-    #     "N" : 12,
-    #     "B_comp1" : 2,
-    #     "B_comp2" : 10,
-    #     "B_comm" : 10,
-    #     "kmax" : 5000,
-    #     "eta" : 0.2,
-    #     "eta_synch" : 0.2,
-    #     "alpha" : 1e-5,
-    #     "delta" : 1,
-    #     "show_fig" : False,
-    #     "save_final_fig" : False,
-    #     "save_final_fig_name" : None,
-    #     "save_video" : False,
-    #     "save_video_name" : None,
-    #     "save_data" : True,
-    #     "save_data_name" : None,
-    # }
-
-    # 2026/10/24
     default_parameters = {
         "rng_seed" : 0,
         "N" : 32,
@@ -46,8 +28,8 @@ def main():
         "alpha" : 1e-4,
         "delta" : 1,
         "show_fig" : False,
-        "save_final_fig" : False,
-        "save_final_fig_name" : None,
+        "save_final_fig_data" : False,
+        "save_final_fig_data_name" : None,
         "save_video" : False,
         "save_video_name" : None,
         "save_data" : True,
@@ -63,28 +45,28 @@ def main():
     with multiprocessing.Pool() as pool:
         parameter_sets = []
 
-        # Experiment 1: Vary B_comm
-        for rng_seed in values_rng_seed:
-            for B_comm in values_B_comm:
-                parameter_set = default_parameters.copy()
-                parameter_set["rng_seed"] = rng_seed
-                parameter_set["B_comm"] = B_comm
-                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
-                parameter_sets.append(parameter_set)
+        # # Experiment 1: Vary B_comm
+        # for rng_seed in values_rng_seed:
+        #     for B_comm in values_B_comm:
+        #         parameter_set = default_parameters.copy()
+        #         parameter_set["rng_seed"] = rng_seed
+        #         parameter_set["B_comm"] = B_comm
+        #         parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
+        #         parameter_sets.append(parameter_set)
 
-        # Experiment 2: Vary N
-        for rng_seed in values_rng_seed:
-            for N in values_N:
-                parameter_set = default_parameters.copy()
-                parameter_set["rng_seed"] = rng_seed
-                parameter_set["N"] = N
-                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
-                parameter_sets.append(parameter_set)
+        # # Experiment 2: Vary N
+        # for rng_seed in values_rng_seed:
+        #     for N in values_N:
+        #         parameter_set = default_parameters.copy()
+        #         parameter_set["rng_seed"] = rng_seed
+        #         parameter_set["N"] = N
+        #         parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
+        #         parameter_sets.append(parameter_set)
 
         # Experiment 3: Render figure and video
         parameter_set = default_parameters.copy()
-        parameter_set["save_final_fig"] = True
-        parameter_set["save_final_fig_name"] = str(save_figure_path.joinpath("figure.pdf").resolve())
+        parameter_set["save_final_fig_data"] = True
+        parameter_set["save_final_fig_data_name"] = str(save_data_path.joinpath("figure_data.json").resolve())
         parameter_set["save_video"] = True
         parameter_set["save_video_name"] = str(save_figure_path.joinpath("video.mp4").resolve())
         parameter_set["save_data"] = False
