@@ -553,7 +553,7 @@ if __name__ == "__main__":
         "N" : 8,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 500,
+        "B_comm" : 1000,
         "kmax" : 10000,
         "eta" : 0.01,
         "eta_synch" : 0.01,

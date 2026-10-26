@@ -21,7 +21,7 @@ def main():
         "N" : 8,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 50,
+        "B_comm" : 500,
         "kmax" : 10000,
         "eta" : 0.01,
         "eta_synch" : 0.01,
@@ -48,23 +48,23 @@ def main():
     with multiprocessing.Pool() as pool:
         parameter_sets = []
 
-        # # Experiment 1: Vary B_comm
-        # for rng_seed in values_rng_seed:
-        #     for B_comm in values_B_comm:
-        #         parameter_set = default_parameters.copy()
-        #         parameter_set["rng_seed"] = rng_seed
-        #         parameter_set["B_comm"] = B_comm
-        #         parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
-        #         parameter_sets.append(parameter_set)
+        # Experiment 1: Vary B_comm
+        for rng_seed in values_rng_seed:
+            for B_comm in values_B_comm:
+                parameter_set = default_parameters.copy()
+                parameter_set["rng_seed"] = rng_seed
+                parameter_set["B_comm"] = B_comm
+                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
+                parameter_sets.append(parameter_set)
 
-        # # Experiment 2: Vary N
-        # for rng_seed in values_rng_seed:
-        #     for N in values_N:
-        #         parameter_set = default_parameters.copy()
-        #         parameter_set["rng_seed"] = rng_seed
-        #         parameter_set["N"] = N
-        #         parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
-        #         parameter_sets.append(parameter_set)
+        # Experiment 2: Vary N
+        for rng_seed in values_rng_seed:
+            for N in values_N:
+                parameter_set = default_parameters.copy()
+                parameter_set["rng_seed"] = rng_seed
+                parameter_set["N"] = N
+                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
+                parameter_sets.append(parameter_set)
 
         # Experiment 3: Render figure and video
         parameter_set = default_parameters.copy()
