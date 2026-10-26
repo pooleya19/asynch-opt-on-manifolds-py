@@ -234,10 +234,12 @@ def run_sim(parameters):
         # recon_rows = int(np.ceil(np.sqrt(len(recon_indices))))
         recon_rows = 5
         recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+        name_asynch = "Reconstruction\n(Algorithm 1)"
+        name_synch = "Reconstruction\n(RGD)"
         if recon_centralized:
-            recon_names = ["Original", "Centralized", "Algorithm 1", "RGD"]
+            recon_names = ["Original", "Centralized", name_asynch, name_synch]
         else:
-            recon_names = ["Original", "Reconstruction\n(Algorithm 1)", "Reconstruction\n(RGD)"]
+            recon_names = ["Original", name_asynch, name_synch]
         for subfig, name in zip(subfigs2, recon_names):
             subfig.suptitle(name)
             # subfig.supylabel(name)
@@ -459,10 +461,10 @@ def run_sim(parameters):
 
             for i in range(len(recon_indices)):
                 img = np.reshape(Zinv @ A @ Cm[:,[i]] + Y_mean, img_shape)
-                recon_images["Asynchronous"][i].set(data=img)
+                recon_images[name_asynch][i].set(data=img)
 
                 img_synch = np.reshape(Zinv @ A_synch @ Cm_synch[:,[i]] + Y_mean, img_shape)
-                recon_images["Synchronous"][i].set(data=img_synch)
+                recon_images[name_synch][i].set(data=img_synch)
 
             # Update atom reconstructions
             _, index = linear_sum_assignment(-np.abs(A_star.T @ A))

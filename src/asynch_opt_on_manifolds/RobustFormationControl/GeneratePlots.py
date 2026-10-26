@@ -156,6 +156,7 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
     x_synch = load_x(figure_data["x_synch"])
     formation_edges = figure_data["formation_edges"]
 
+    # Generate plot
     fig2, ax_form = plt.subplots(2, 2, figsize=figsize, dpi=150, subplot_kw={"projection": "3d"})
     ((ax_form_des, ax_form_init), (ax_form_asynch, ax_form_synch)) = ax_form
     axes_length = 0.1
@@ -195,8 +196,6 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
     ax_form_synch.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
     ax_form_synch.set(title="Final Poses (RGD)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
 
-    fig2.canvas.draw()
-
     # Save figure
     if save_figure:
         print("Saving %s... " % figure_file_name, end='', flush=True)
@@ -206,7 +205,7 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
 
 def main():
     figsize = (8,5)
-    save_fig = False
+    save_fig = True
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
@@ -226,7 +225,7 @@ def main():
                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
                 save_fig)
 
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 if __name__ == "__main__":
