@@ -4,14 +4,14 @@ import json
 import time
 import os
 from pathlib import Path
+import cv2
 
 from asynch_opt_on_manifolds.Utils.Manifolds import ObliqueManifold, ProductManifold
 from asynch_opt_on_manifolds.Utils.ManifoldUtils import freeze_manifold_point
 from asynch_opt_on_manifolds.Utils.Agents import Agent, SynchAgent
 from asynch_opt_on_manifolds.Utils.SimUtils import runSimCentralizedRBB
-import scipy.linalg
 from scipy.optimize import linear_sum_assignment
-
+from scipy.stats import ortho_group
 
 def calculate_euclidean_grad(agent):
     Y, beta = agent.data
@@ -87,9 +87,11 @@ def run_sim(parameters):
 
     # Define parameters
     render_fig = show_fig or save_video or save_final_fig
-    compute_metrics_mod = 10
+    compute_metrics_mod = 50
     render_mod = 100
-    recon_indices = list(range(20))
+    # recon_indices = [1,5,6,7,9,11,15,16,20]
+    recon_indices = list(range(10))
+    recon_centralized = False
 
     # Init RNG
     rng_sim = np.random.default_rng(seed=rng_seed)
@@ -102,6 +104,7 @@ def run_sim(parameters):
     Y_mean = np.mean(Y, axis=1, keepdims=True)
     Y_cov = 1/num_samples * (Y - Y_mean) @ (Y - Y_mean).T
     V, U = np.linalg.eigh(Y_cov)
+    print("Percent Variance Explained = %.2f" % (np.sum(V[dim_raw-r:dim_raw])/np.sum(V) * 100))
     Vr = V[dim_raw-r:dim_raw]
     Ur = U[:,dim_raw-r:dim_raw]
     Z = np.diag(np.power(Vr,-1/2)) @ Ur.T
@@ -146,8 +149,8 @@ def run_sim(parameters):
         agents_synch.append(SynchAgent(i, ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad))
 
     product_manifold = ProductManifold([ObliqueManifold() for i in range(N)])
-    initial_rie_grad = product_manifold.proj(x_initial, [calculate_euclidean_grad(agents[i]) for i in range(N)])
-    print("Initial grad norm = %.2E" % (product_manifold.norm(initial_rie_grad)))
+    # initial_rie_grad = product_manifold.proj(x_initial, [calculate_euclidean_grad(agents[i]) for i in range(N)])
+    # print("Initial grad norm = %.2E" % (product_manifold.norm(initial_rie_grad)))
 
     # Initialize mailboxes
     mailbox_outgoing = list(x_initial)
@@ -226,35 +229,41 @@ def run_sim(parameters):
         # Init reconstructions
         v_min_Y = np.min(np.abs(Y))
         v_max_Y = np.max(np.abs(Y))
-        fig2 = plt.figure(figsize=(18,5), layout="constrained")
-        subfigs2 = fig2.subfigures(1, 4, wspace=0.03)
-        recon_images = []
-        recon_rows = int(np.ceil(np.sqrt(len(recon_indices))))
+        fig2 = plt.figure(figsize=(6,5), layout="constrained")
+        subfigs2 = fig2.subfigures(1, 3 + recon_centralized, wspace=0.1)
+        recon_images = {}
+        # recon_rows = int(np.ceil(np.sqrt(len(recon_indices))))
+        recon_rows = 5
         recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
-        for subfig, name in zip(subfigs2, ["Original", "Centralized", "Asynch", "Synch"]):
+        if recon_centralized:
+            recon_names = ["Original", "Centralized", "Asynchronous", "Synchronous"]
+        else:
+            recon_names = ["Original", "Asynchronous", "Synchronous"]
+        for subfig, name in zip(subfigs2, recon_names):
             subfig.suptitle(name)
+            # subfig.supylabel(name)
             axes = subfig.subplots(recon_rows, recon_cols)
             handles = []
             for k, ax in enumerate(axes.flat):
                 ax.set_axis_off()
-                if k < r:
+                if k < len(recon_indices):
                     handles.append(ax.imshow(np.zeros(img_shape), cmap="gray", interpolation="nearest", clim=(v_min_Y,v_max_Y)))
-            recon_images.append(handles)
+            recon_images[name] = handles
 
         # Original and top-m centralization reconstruction
         for i in range(len(recon_indices)):
-            img_og = np.reshape(Y[:,[i]], img_shape)
-            recon_images[0][i].set(data=img_og)
+            img_og = np.reshape(Y[:,[recon_indices[i]]], img_shape)
+            recon_images["Original"][i].set(data=img_og)
 
-        Cm_star = np.zeros_like(C_star)
-        for i in range(len(recon_indices)):
-            index_i_star = np.argpartition(np.abs(C_star[:,i]),-m)[-m:]
-            Cm_star[index_i_star,i] = C_star[index_i_star,i]
+        if recon_centralized:
+            Cm_star = np.zeros_like(C_star)
+            for i in range(len(recon_indices)):
+                index_i_star = np.argpartition(np.abs(C_star[:,i]),-m)[-m:]
+                Cm_star[index_i_star,i] = C_star[index_i_star,i]
 
-        for i in range(len(recon_indices)):
-            img_star = np.reshape(Zinv @ A_star @ Cm_star[:,[i]] + Y_mean, img_shape)
-            v_star = np.max(np.abs(img_star))
-            recon_images[1][i].set(data=img_star)
+            for i in range(len(recon_indices)):
+                img_star = np.reshape(Zinv @ A_star @ Cm_star[:,[i]] + Y_mean, img_shape)
+                recon_images["Centralized"][i].set(data=img_star)
 
         # Init atoms
         fig3 = plt.figure(figsize=(18,6), layout="constrained")
@@ -282,6 +291,14 @@ def run_sim(parameters):
         if show_fig:
             plt.show(block=False)
             plt.pause(0.01)
+
+    # Init video
+    if save_video:
+        video_width, video_height = fig2.canvas.get_width_height(physical=True)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
+        os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
+        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (video_width, video_height))
+
 
     # Init map for tracking x_synch
     x_synch_map = {0:list(x_initial)}
@@ -438,18 +455,15 @@ def run_sim(parameters):
             for i in range(len(recon_indices)):
                 index_i = np.argpartition(np.abs(C[:,i]),-m)[-m:]
                 index_i_synch = np.argpartition(np.abs(C_synch[:,i]),-m)[-m:]
-                Cm_star[index_i_star,i] = C_star[index_i_star,i]
                 Cm[index_i,i] = C[index_i,i]
                 Cm_synch[index_i_synch,i] = C_synch[index_i_synch,i]
 
             for i in range(len(recon_indices)):
                 img = np.reshape(Zinv @ A @ Cm[:,[i]] + Y_mean, img_shape)
-                v = np.max(np.abs(img))
-                recon_images[2][i].set(data=img)
+                recon_images["Asynchronous"][i].set(data=img)
 
                 img_synch = np.reshape(Zinv @ A_synch @ Cm_synch[:,[i]] + Y_mean, img_shape)
-                v_synch = np.max(np.abs(img_synch))
-                recon_images[3][i].set(data=img_synch)
+                recon_images["Synchronous"][i].set(data=img_synch)
 
             # Update atom reconstructions
             _, index = linear_sum_assignment(-np.abs(A_star.T @ A))
@@ -478,112 +492,70 @@ def run_sim(parameters):
             fig3.canvas.draw()
             fig3.canvas.flush_events()
 
+            if save_video:
+                img = np.asarray(fig2.canvas.buffer_rgba())[:,:,:3]
+                img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                video.write(img_bgr)
+
 
     time_end = time.time()
     time_elapsed = time_end - time_start
 
-    if show_fig:
-        # if save_fig:
-        #     print("Saving figure... ", end='', flush=True)
-        #     Path(save_directory_path).mkdir(parents=True, exist_ok=True)
-        #     fig_path = str(Path(save_directory_path).joinpath(save_fig_name).resolve())
-        #     fig2.savefig(fig_path, format="svg")
-        #     print("Done!")
+    if save_final_fig:
+        os.makedirs(os.path.dirname(save_final_fig_name), exist_ok=True)
+        fig2.savefig(save_final_fig_name, format="pdf")
 
+    if save_video:
+        video.release()
+
+    if save_data:
+        os.makedirs(os.path.dirname(save_data_name), exist_ok=True)
+
+        output_data = {"parameters" : parameters,
+                       "iterations" : data_iteration, 
+                       "f" : data_f, 
+                       "f_synch" : data_f_synch, 
+                       "f_star" : f_star,
+                       "norm_grad" : data_norm_grad,
+                       "norm_grad_synch" : data_norm_grad_synch,
+                       "time_elapsed" : time_elapsed,
+                       "dtype":str(Y.dtype)}
+        
+        with open(save_data_name, "w") as file:
+            json.dump(output_data, file)
+
+    if show_fig:
         print("Finished simulation. Close figure to quit.")
         plt.show(block=True)
 
-    # if save_output:
-    #     file_path = os.path.join(save_directory_path, save_file_name)
-    #     keys_descending_length = list(parameters.keys())
-    #     keys_descending_length.sort(key=len, reverse=True)
-    #     for i in range(len(keys_descending_length)):
-    #         key = keys_descending_length[i]
-    #         file_path = file_path.replace("<"+key+">", str(parameters[key]))
-    #     os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-    #     output_data = {
-    #         "parameters":parameters, 
-    #         "iterations":data_iteration, 
-    #         "f":data_f, 
-    #         "f_synch":data_f_synch, 
-    #         "sparsity":data_sparsity, 
-    #         "sparsity_synch":data_sparsity_synch, 
-    #         "time_elapsed":time_elapsed,
-    #         "dtype":str(Y.dtype)
-    #     }
-    #     with open(file_path, "w") as file:
-    #         json.dump(output_data, file)
-    # return time_elapsed
+    return time_elapsed
 
 
 if __name__ == "__main__":
-    # default_parameters = {
-    #     "rng_seed" : 0,
-    #     "N" : 10,
-    #     "B_comp1" : 2,
-    #     "B_comp2" : 10,
-    #     "B_comm" : 50,
-    #     "kmax" : 50000,
-    #     "eta" : 0.001,
-    #     "eta_synch" : 0.001,
-    #     "beta" : 10,
-    #     "sparsity_threshold" : 0.01,
-    #     "m" : 5,
-    #     "r" : 40,
-    #     # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
-    #     "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("digits.npy").resolve()),
-    #     "show_fig" : True,
-    #     "save_final_fig" : False,
-    #     "save_final_fig_name" : None,
-    #     "save_video" : False,
-    #     "save_video_name" : None,
-    #     "save_data" : False,
-    #     "save_data_name" : None,
-    # }
-    # default_parameters = {
-    #     "rng_seed" : 0,
-    #     "N" : 10,
-    #     "B_comp1" : 2,
-    #     "B_comp2" : 10,
-    #     "B_comm" : 50,
-    #     "kmax" : 50000,
-    #     "eta" : 0.001,
-    #     "eta_synch" : 0.001,
-    #     "beta" : 20,
-    #     "sparsity_threshold" : 0.01,
-    #     "m" : 5,
-    #     "r" : 40,
-    #     "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("usps.npy").resolve()),
-    #     "show_fig" : True,
-    #     "save_final_fig" : False,
-    #     "save_final_fig_name" : None,
-    #     "save_video" : False,
-    #     "save_video_name" : None,
-    #     "save_data" : False,
-    #     "save_data_name" : None,
-    # }
     default_parameters = {
         "rng_seed" : 0,
-        "N" : 10,
+        "N" : 8,
         "B_comp1" : 2,
         "B_comp2" : 10,
-        "B_comm" : 50,
-        "kmax" : 50000,
-        "eta" : 0.001,
-        "eta_synch" : 0.001,
+        "B_comm" : 500,
+        "kmax" : 10000,
+        "eta" : 0.01,
+        "eta_synch" : 0.01,
         "beta" : 20,
         "sparsity_threshold" : 0.01,
         "m" : 5,
-        "r" : 55,
+        "r" : 83,
+        # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("synthetic.npy").resolve()),
+        # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("digits.npy").resolve()),
+        # "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("usps.npy").resolve()),
         "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("fashion_mnist.npy").resolve()),
         "show_fig" : True,
         "save_final_fig" : False,
-        "save_final_fig_name" : None,
+        "save_final_fig_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning").joinpath("figure.pdf")),
         "save_video" : False,
-        "save_video_name" : None,
+        "save_video_name" : str(Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning").joinpath("video.mp4")),
         "save_data" : False,
-        "save_data_name" : None,
+        "save_data_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning").joinpath("data.json")),
     }
 
     from threadpoolctl import threadpool_limits

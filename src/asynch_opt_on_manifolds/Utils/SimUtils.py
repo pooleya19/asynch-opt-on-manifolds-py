@@ -75,8 +75,8 @@ def runSimCentralizedRBB(manifold, x_initial, eta, data, calculate_euclidean_gra
     k = -1
     while True:
         k += 1
-        if k%10 == 0:
-            print("k=%5g, f=%.20f, gradient norm=%.2E   (stopping when gradient norm <= %.2E)" % (k, recent_f[0], norm_g, centralized_min_grad_norm))
+        # if k%10 == 0:
+        #     print("k=%5g, f=%.20f, gradient norm=%.2E   (stopping when gradient norm <= %.2E)" % (k, recent_f[0], norm_g, centralized_min_grad_norm))
 
         # Step 2
         h = 0

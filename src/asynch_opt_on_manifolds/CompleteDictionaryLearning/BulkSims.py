@@ -1,117 +1,89 @@
-import numpy as np
 import multiprocessing
 from pathlib import Path
-from signal import signal, SIGINT
 from threadpoolctl import threadpool_limits
 
-from asynch_opt_on_manifolds.DictionaryLearning.DictionaryLearning import run_sim
+from asynch_opt_on_manifolds.CompleteDictionaryLearning.Sim import run_sim
 
 
-def initializer():
-    signal(SIGINT, lambda: None)
-    threadpool_limits(1, "blas")
-
-
-def parameter_set_generator(fixed_parameter_dict, varying_parameter_dict):
-    parameter_set = []
-
-    varying_parameter_names = list(varying_parameter_dict.keys())
-    num_varying_parameters = len(varying_parameter_names)
-    varying_parameter_sizes = np.zeros(num_varying_parameters)
-    for i in range(num_varying_parameters):
-        varying_parameter_sizes[i] = len(varying_parameter_dict[varying_parameter_names[i]])
-    varying_parameter_sizes_cumprod = np.cumprod(varying_parameter_sizes)
-
-    num_parameter_combinations = int(np.prod(varying_parameter_sizes))
-    for i in range(num_parameter_combinations):
-        output_parameter_dict = fixed_parameter_dict.copy()
-        for j in range(num_varying_parameters):
-            varying_parameter_name = varying_parameter_names[j]
-            if j == 0:
-                varying_parameter_index = i % varying_parameter_sizes[0]
-            else:
-                varying_parameter_index = (i // varying_parameter_sizes_cumprod[j-1]) % varying_parameter_sizes[j]
-            output_parameter_dict[varying_parameter_name] = varying_parameter_dict[varying_parameter_name][int(varying_parameter_index)]
-
-        # Process B_comm and B_calc
-        if "B_comm_calc_ratio" in output_parameter_dict:
-            output_parameter_dict["B_calc"] = max(1, output_parameter_dict["B_comm"]//output_parameter_dict["B_comm_calc_ratio"])
-            del output_parameter_dict["B_comm_calc_ratio"]
-        
-        parameter_set.append(output_parameter_dict)
-
-    return parameter_set
+def run_sim_safely(parameters):
+    try:
+        threadpool_limits(1, "blas")
+        return run_sim(parameters)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 def main():
-    save_directory_path = str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_results").resolve())
-    fixed_parameter_dict = {
-        "n": 1000,
-        "kmax": 10000,
-        "gamma": 5,
-        "gamma_synch": 20,
-        "lam": 0.01,
-        "eps": 1e-7,
-        "sparsity_threshold": 0.005,
-        "data_directory_path": str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").resolve()),
-        "data_file_name": "fashion_mnist_32.npy",
-        "show_fig": False,
-        "save_fig": False,
-        "save_output": True,
-        "save_directory_path": save_directory_path,
-        "save_fig_name": None
+    default_parameters = {
+        "rng_seed" : 0,
+        "N" : 8,
+        "B_comp1" : 2,
+        "B_comp2" : 10,
+        "B_comm" : 500,
+        "kmax" : 10000,
+        "eta" : 0.01,
+        "eta_synch" : 0.01,
+        "beta" : 20,
+        "sparsity_threshold" : 0.01,
+        "m" : 5,
+        "r" : 83,
+        "data_file_name" : str(Path(__file__).parents[3].joinpath("data").joinpath("dictionary_dataset").joinpath("fashion_mnist.npy").resolve()),
+        "show_fig" : False,
+        "save_final_fig" : False,
+        "save_final_fig_name" : None,
+        "save_video" : False,
+        "save_video_name" : None,
+        "save_data" : True,
+        "save_data_name" : None,
     }
 
-    with multiprocessing.Pool(initializer=initializer) as pool:
-        # varying_parameter_dict0 = {
-        #     "rng_seed" : [0],
-        #     "N" : [100],
-        #     "B_comm" : [100],
-        #     "B_comm_calc_ratio" : [1],
-        #     "save_file_name": ["test/exp.json"],
-        # }
-        # parameter_set0 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict0)
+    values_rng_seed = [0,1,2,3,4]
+    values_B_comm = [10,20,50,100,200,500,1000,2000]
+    values_N = [2,4,8,16,32,64]
+    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning")
+    save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning")
 
-        # Experiment 1: Vary B (B_comm = B_calc)
-        varying_parameter_dict1 = {
-            "rng_seed":[0,1,2,3,4],
-            "N":[10],
-            "B_comm":[10,50,100,500,1000,2000],
-            "B_comm_calc_ratio":[1],
-            "save_file_name":["exp1/rng<rng_seed>_N<N>_B<B_comm>.json"]
-        }
-        parameter_set1 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict1)
+    with multiprocessing.Pool() as pool:
+        parameter_sets = []
+
+        # Experiment 1: Vary B_comm
+        for rng_seed in values_rng_seed:
+            for B_comm in values_B_comm:
+                parameter_set = default_parameters.copy()
+                parameter_set["rng_seed"] = rng_seed
+                parameter_set["B_comm"] = B_comm
+                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
+                parameter_sets.append(parameter_set)
 
         # Experiment 2: Vary N
-        varying_parameter_dict2 = {
-            "rng_seed":[0,1,2,3,4],
-            "N":[5,10,20,50,100],
-            "B_comm":[500],
-            "B_calc":[500],
-            "save_file_name":["exp2/rng<rng_seed>_N<N>_B<B_comm>.json"]
-        }
-        parameter_set2 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict2)
+        for rng_seed in values_rng_seed:
+            for N in values_N:
+                parameter_set = default_parameters.copy()
+                parameter_set["rng_seed"] = rng_seed
+                parameter_set["N"] = N
+                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
+                parameter_sets.append(parameter_set)
 
-        # Experiment 3: Vary B_comm with fixed B_calc
-        varying_parameter_dict3 = {
-            "rng_seed":[0,1,2,3,4],
-            "N":[10],
-            "B_comm":[10,50,100,500,1000,2000],
-            "B_calc":[10],
-            "save_file_name":["exp3/rng<rng_seed>_N<N>_B<B_comm>.json"]
-        }
-        parameter_set3 = parameter_set_generator(fixed_parameter_dict, varying_parameter_dict3)
+        # Experiment 3: Render figure and video
+        parameter_set = default_parameters.copy()
+        parameter_set["save_final_fig"] = True
+        parameter_set["save_final_fig_name"] = str(save_figure_path.joinpath("figure.pdf").resolve())
+        parameter_set["save_video"] = True
+        parameter_set["save_video_name"] = str(save_figure_path.joinpath("video.mp4").resolve())
+        parameter_set["save_data"] = False
+        parameter_sets.append(parameter_set)
 
         # Run all experiments
-        parameter_sets = []
-        # parameter_sets += parameter_set0
-        parameter_sets += parameter_set1
-        parameter_sets += parameter_set2
-        parameter_sets += parameter_set3
         num_sims = len(parameter_sets)
         print("Beginning %g simulations on %g workers:" % (num_sims, pool._processes))
-        for sim_index, sim_time in enumerate(pool.imap_unordered(run_sim, parameter_sets)):
-            print("Finished sim %g/%g in %.2f seconds." % (sim_index+1, num_sims, sim_time))
+        for sim_index, sim_time in enumerate(pool.imap_unordered(run_sim_safely, parameter_sets)):
+            if sim_time is not None:
+                print("Finished sim %g/%g in %.2f seconds." % (sim_index+1, num_sims, sim_time))
+            else:
+                print("Sim %g/%g failed." % (sim_index+1, num_sims))
+
 
 if __name__ == "__main__":
     main()

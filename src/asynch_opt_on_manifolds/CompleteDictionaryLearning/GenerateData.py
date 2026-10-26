@@ -4,6 +4,13 @@ from sklearn.datasets import load_digits, fetch_openml
 from scipy.stats import ortho_group
 
 
+def permute_data_by_class(Y, labels):
+    labels = np.astype(labels, int)
+    lead = np.array([np.argmax(labels == c) for c in np.unique(labels)])
+    rest = np.setdiff1d(np.arange(Y.shape[1]), lead)
+    return Y[:, np.concatenate([lead, rest])]
+
+
 def saveDataFloat32(Y, save_directory, file_name):
     file_name_new = "_32.".join(file_name.rsplit(".",1))
     file_path = str(save_directory.joinpath(file_name_new).resolve())
@@ -29,8 +36,9 @@ def saveSyntheticData(dim, num_samples, save_directory, file_name):
 
 def saveDigitsData(k, save_directory, file_name):
     print("Saving digits... ", end='', flush=True)
-    X, _ = load_digits(return_X_y=True)
+    X, labels = load_digits(return_X_y=True)
     Y = X.T[:,0:k].copy()
+    Y = permute_data_by_class(Y, labels[0:k])
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
     saveDataFloat32(Y, save_directory, file_name)
@@ -39,8 +47,9 @@ def saveDigitsData(k, save_directory, file_name):
 
 def saveUSPSData(k, save_directory, file_name):
     print("Saving USPS... ", end='', flush=True)
-    X, _ = fetch_openml('USPS', version=2, return_X_y=True, as_frame=False, parser="liac-arff")
+    X, labels = fetch_openml('USPS', version=2, return_X_y=True, as_frame=False, parser="liac-arff")
     Y = X.T[:,0:k].copy()
+    Y = permute_data_by_class(Y, labels[0:k])
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
     saveDataFloat32(Y, save_directory, file_name)
@@ -49,8 +58,9 @@ def saveUSPSData(k, save_directory, file_name):
 
 def saveFashionMNISTData(k, save_directory, file_name):
     print("Saving Fashion-MNIST... ", end='', flush=True)
-    X, _ = fetch_openml('Fashion-MNIST', version=1, return_X_y=True, as_frame=False, parser="liac-arff")
+    X, labels = fetch_openml('Fashion-MNIST', version=1, return_X_y=True, as_frame=False, parser="liac-arff")
     Y = X.T[:,0:k].copy()
+    Y = permute_data_by_class(Y, labels[0:k])
     file_path = save_directory.joinpath(file_name)
     np.save(str(file_path.resolve()), Y)
     saveDataFloat32(Y, save_directory, file_name)

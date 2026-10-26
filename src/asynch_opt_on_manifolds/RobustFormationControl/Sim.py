@@ -294,10 +294,10 @@ def run_sim(parameters):
 
     # Init video
     if save_video:
-        fi2_width, fig2_height = fig2.canvas.get_width_height(physical=True)
+        video_width, video_height = fig2.canvas.get_width_height(physical=True)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
         os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
-        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (fi2_width, fig2_height))
+        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (video_width, video_height))
 
 
     # Init map for tracking x_synch
