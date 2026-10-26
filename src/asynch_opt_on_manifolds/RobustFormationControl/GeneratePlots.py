@@ -11,9 +11,11 @@ plt.rcParams.update({
     "legend.fontsize": 12,
 })
 from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from pathlib import Path
 import json
 
+from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat
 
 def compress_results(varied_parameters, save_directory_path):
     unique_parameter_values = [[] for _ in range(len(varied_parameters))]
@@ -110,9 +112,101 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         print("Done!")
 
 
+def generate_formation_visuals(x, formation_edges, axis_length):
+    N = len(x)
+    ts = [x[i][0] for i in range(N)]
+    Rs = [quat_to_rot_mat(x[i][1]) for i in range(N)]
+
+    positions = np.zeros((N,3))
+    x_axes = np.zeros((N,2,3))
+    y_axes = np.zeros((N,2,3))
+    z_axes = np.zeros((N,2,3))
+    for i in range(N):
+        positions[i,:] = ts[i][:,0]
+        x_axes[i,0,:] = ts[i][:,0]
+        x_axes[i,1,:] = ts[i][:,0] + axis_length*Rs[i][:,0]
+        y_axes[i,0,:] = ts[i][:,0]
+        y_axes[i,1,:] = ts[i][:,0] + axis_length*Rs[i][:,1]
+        z_axes[i,0,:] = ts[i][:,0]
+        z_axes[i,1,:] = ts[i][:,0] + axis_length*Rs[i][:,2]
+
+    edges = np.zeros((len(formation_edges),2,3))
+    for k in range(len(formation_edges)):
+        i,j = formation_edges[k]
+        edges[k,0,:] = ts[i][:,0]
+        edges[k,1,:] = ts[j][:,0]
+
+    return positions, x_axes, y_axes, z_axes, edges
+
+def load_x(x_list):
+    return [[np.array(x_list[i][0]), np.array(x_list[i][1])] for i in range(len(x_list))]
+
+def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
+    # Load data
+    figure_data = None
+    with open(figure_data_file_name, "r") as file:
+        figure_data = json.load(file)
+    if figure_data is None:
+        raise RuntimeError("Failed to load data.")
+
+    # Parse data
+    x_formation = load_x(figure_data["x_formation"])
+    x_initial = load_x(figure_data["x_initial"])
+    x = load_x(figure_data["x"])
+    x_synch = load_x(figure_data["x_synch"])
+    formation_edges = figure_data["formation_edges"]
+
+    fig2, ax_form = plt.subplots(2, 2, figsize=figsize, dpi=150, subplot_kw={"projection": "3d"})
+    ((ax_form_des, ax_form_init), (ax_form_asynch, ax_form_synch)) = ax_form
+    axes_length = 0.1
+    axes_linewidth = 1.5
+    edge_linewidth = 0.5
+
+    lim = 0.8
+    positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_formation, formation_edges, axes_length)
+    ax_form_des.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+    ax_form_des.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
+    ax_form_des.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
+    ax_form_des.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
+    ax_form_des.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+    ax_form_des.set(title="Desired Formation", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
+    
+    positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_initial, formation_edges, axes_length)
+    ax_form_init.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+    ax_form_init.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
+    ax_form_init.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
+    ax_form_init.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
+    ax_form_init.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+    ax_form_init.set(title="Initial Poses", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
+    
+    positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x, formation_edges, axes_length)
+    ax_form_asynch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+    ax_form_asynch.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
+    ax_form_asynch.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
+    ax_form_asynch.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
+    ax_form_asynch.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+    ax_form_asynch.set(title="Final Poses (Algorithm 1)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
+    
+    positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_synch, formation_edges, axes_length)
+    ax_form_synch.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3)[0]
+    ax_form_synch.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth))
+    ax_form_synch.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth))
+    ax_form_synch.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth))
+    ax_form_synch.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth))
+    ax_form_synch.set(title="Final Poses (RGD)", xlim=(-lim,lim), ylim=(-lim,lim), zlim=(-lim,lim), aspect="equal")
+
+    fig2.canvas.draw()
+
+    # Save figure
+    if save_figure:
+        print("Saving %s... " % figure_file_name, end='', flush=True)
+        fig2.savefig(figure_file_name, format="pdf", bbox_inches="tight")
+        print("Done!")
+
+
 def main():
     figsize = (8,5)
-    save_fig = True
+    save_fig = False
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
@@ -126,6 +220,11 @@ def main():
                    str(data_directory_path.joinpath("exp2").resolve()), 
                    str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
                    "N", "N", save_fig)
+
+    plotVisuals((10,10),
+                str(data_directory_path.joinpath("figure_data.json").resolve()),
+                str(figure_directory_path.joinpath("figure.pdf").resolve()),
+                save_fig)
 
     plt.show(block=True)
 

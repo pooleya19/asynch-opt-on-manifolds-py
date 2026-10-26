@@ -449,11 +449,14 @@ def run_sim(parameters):
     time_elapsed = time_end - time_start
 
     if save_final_fig_data:
+        def dump_x(x_array):
+            return [[x_array[i][0].tolist(), x_array[i][1].tolist()] for i in range(len(x_array))]
+
         os.makedirs(os.path.dirname(save_final_fig_data_name), exist_ok=True)
-        final_fig_data = {"x_formation" : x_formation,
-                          "x_initial" : x_initial,
-                          "x" : x,
-                          "x_synch" : x_synch,
+        final_fig_data = {"x_formation" : dump_x(x_formation),
+                          "x_initial" : dump_x(x_initial),
+                          "x" : dump_x(x),
+                          "x_synch" : dump_x(x_synch),
                           "formation_edges" : formation_edges,
                           }
         

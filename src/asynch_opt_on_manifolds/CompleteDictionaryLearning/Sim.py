@@ -507,13 +507,13 @@ def run_sim(parameters):
 
     if save_final_fig_data:
         os.makedirs(os.path.dirname(save_final_fig_data_name), exist_ok=True)
-        final_fig_data = {"Y" : Y,
-                          "Ypp" : Ypp,
-                          "Y_mean" : Y_mean,
+        final_fig_data = {"Y" : Y.tolist(),
+                          "Ypp" : Ypp.tolist(),
+                          "Y_mean" : Y_mean.tolist(),
                           "img_shape" : img_shape,
-                          "Zinv" : Zinv,
-                          "x" : x,
-                          "x_synch" : x_synch}
+                          "Zinv" : Zinv.tolist(),
+                          "A" : A.tolist(),
+                          "A_synch" : A_synch.tolist()}
         
         with open(save_final_fig_data_name, "w") as file:
             json.dump(final_fig_data, file)
