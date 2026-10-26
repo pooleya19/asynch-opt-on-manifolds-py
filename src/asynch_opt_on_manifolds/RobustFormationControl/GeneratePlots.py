@@ -112,7 +112,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
     suboptimality_reductions = np.floor(suboptimality_reductions)
 
-    print("Vary %s,  suboptimality reduction: %.1f-%.1f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
+    print("Vary %s: Suboptimality reduction: %.1f-%.1f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
         print("\t%s=%g: %g" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))

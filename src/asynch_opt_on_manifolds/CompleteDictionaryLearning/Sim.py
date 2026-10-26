@@ -514,8 +514,8 @@ def run_sim(parameters):
                           "Y_mean" : Y_mean.tolist(),
                           "img_shape" : img_shape,
                           "Zinv" : Zinv.tolist(),
-                          "A" : A.tolist(),
-                          "A_synch" : A_synch.tolist()}
+                          "A" : np.hstack(x).tolist(),
+                          "A_synch" : np.hstack(x_synch).tolist()}
         
         with open(save_final_fig_data_name, "w") as file:
             json.dump(final_fig_data, file)
