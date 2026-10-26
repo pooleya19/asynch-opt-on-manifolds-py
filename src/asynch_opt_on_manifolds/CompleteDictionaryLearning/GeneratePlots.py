@@ -124,7 +124,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
 def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
     # Define parameters
-    m = 5
+    m = 83
     recon_indices = list(range(10))
     recon_rows = 5
     recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
@@ -200,7 +200,7 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
 
 def main():
     figsize = (8,5)
-    save_fig = True
+    save_fig = False
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
@@ -220,7 +220,7 @@ def main():
                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
                 save_fig)
 
-    # plt.show(block=True)
+    plt.show(block=True)
 
 
 if __name__ == "__main__":
