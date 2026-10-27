@@ -124,9 +124,12 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
 def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
     # Define parameters
-    m = 83
-    recon_indices = list(range(10))
-    recon_rows = 5
+    m = 5
+    # recon_indices = list(range(10))
+    # recon_rows = 5
+    # recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+    recon_indices = [0,1,3,9]
+    recon_rows = 2
     recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
 
     # Load data
@@ -151,7 +154,7 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
     fig2 = plt.figure(figsize=figsize, layout="constrained")
     subfigs2 = fig2.subfigures(1, 3, wspace=0.1)
     recon_images = {}
-    name_original = "Original\n"
+    name_original = r"Dataset, $Y$" + "\n"
     name_asynch = "Reconstruction\n(Algorithm 1)"
     name_synch = "Reconstruction\n(RGD)"
     recon_names = [name_original, name_asynch, name_synch]
@@ -168,7 +171,8 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
 
     # Original images
     for i in range(len(recon_indices)):
-        img_og = np.reshape(Y[:,[recon_indices[i]]], img_shape)
+        # img_og = np.reshape(Y[:,[recon_indices[i]]], img_shape)
+        img_og = np.reshape(Zinv @ Ypp[:,[recon_indices[i]]] + Y_mean, img_shape)
         recon_images[name_original][i].set(data=img_og)
 
     # Top-m reconstructions
@@ -200,7 +204,7 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
 
 def main():
     figsize = (8,5)
-    save_fig = False
+    save_fig = True
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
@@ -215,12 +219,13 @@ def main():
                    str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
                    "N", "N", save_fig)
 
-    plotVisuals((6,5),
+    # plotVisuals((6,5),
+    plotVisuals((5,2),
                 str(data_directory_path.joinpath("figure_data.json").resolve()),
                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
                 save_fig)
 
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 if __name__ == "__main__":
