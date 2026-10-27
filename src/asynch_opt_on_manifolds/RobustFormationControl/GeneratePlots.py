@@ -9,6 +9,7 @@ plt.rcParams.update({
     "xtick.labelsize": 12,   # tick numbers
     "ytick.labelsize": 12,
     "legend.fontsize": 12,
+    "font.family": "serif",
 })
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -153,7 +154,9 @@ def generate_formation_visuals(x, formation_edges, axis_length):
 def load_x(x_list):
     return [[np.array(x_list[i][0]), np.array(x_list[i][1])] for i in range(len(x_list))]
 
-def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
+def plotVisuals1(figure_data_file_name, figure_file_name, save_figure):
+    figsize = (10,10)
+
     # Load data
     figure_data = None
     with open(figure_data_file_name, "r") as file:
@@ -214,6 +217,92 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
         fig2.savefig(figure_file_name, format="pdf", bbox_inches="tight")
         print("Done!")
 
+def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_dividers):
+    figsize = (10,6.6)
+    ieee_width = 3.5
+
+    text_fontsize = 8
+    axes_fontsize = 5
+
+    # Load data
+    figure_data = None
+    with open(figure_data_file_name, "r") as file:
+        figure_data = json.load(file)
+    if figure_data is None:
+        raise RuntimeError("Failed to load data.")
+
+    # Parse data
+    x_formation = load_x(figure_data["x_formation"])
+    x_initial = load_x(figure_data["x_initial"])
+    x = load_x(figure_data["x"])
+    x_synch = load_x(figure_data["x_synch"])
+    formation_edges = figure_data["formation_edges"]
+
+    # Generate plot
+    fig2 = plt.figure(figsize=figsize, dpi=150)
+    axes_length = 0.1
+    axes_linewidth = 1.5
+    edge_linewidth = 0.5
+
+    lim_xy = 0.72
+    lim_z = 0.5
+    # gap = 0.03
+    gap = 0
+    cam_elev = 18
+    cam_azim = -60
+    caption_height = 0.07
+    panel_height = (1-gap)/2
+
+    divider_color = 0.8*np.ones((3))
+    divider_linewidth = 0.8
+
+    # Define panels
+    panels = [(x_formation, "(a) Desired Formation", (0.0, panel_height + gap)),
+              (x_initial,   "(b) Initial Poses",     (0.5, panel_height + gap)),
+              (x,           "(c) Final Poses (Algorithm 1)",       (0.0, 0.0)),
+              (x_synch,     "(d) Final Poses (RGD)",               (0.5, 0.0))]
+
+    for x_plot, caption, (x0, y0) in panels:
+        ax = fig2.add_axes([x0, y0+caption_height, 0.5, panel_height-caption_height], projection="3d")
+
+        # Plot formations
+        positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_plot, formation_edges, axes_length)
+        ax.plot(positions[:,0], positions[:,1], positions[:,2], "o", color="k", markersize=3, clip_on=False)
+        ax.add_collection3d(Line3DCollection(axes_x, colors="r", linewidths=axes_linewidth, clip_on=False))
+        ax.add_collection3d(Line3DCollection(axes_y, colors="g", linewidths=axes_linewidth, clip_on=False))
+        ax.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth, clip_on=False))
+        ax.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth, clip_on=False))
+        ax.set(xlim=(-lim_xy,lim_xy), ylim=(-lim_xy,lim_xy), zlim=(-lim_z,lim_z))
+        ax.set_box_aspect((1, 1, lim_z/lim_xy), zoom=1.8)
+        ax.view_init(elev=cam_elev, azim=cam_azim)
+        ax.axis("off")
+
+        # Plot title
+        fig2.text(x0+0.25, y0+caption_height/2, caption, ha="center", va="center", fontsize=text_fontsize/ieee_width*figsize[0])
+
+        # Plot x-y-z axes indicator
+        ax_xyz = fig2.add_axes([x0+0.015, y0+caption_height+0.02, 0.07, 0.11], projection="3d")
+        for c, (name, color) in enumerate(zip("xyz", "rgb")):
+            e = np.zeros(3)
+            e[c] = 1
+            ax_xyz.add_collection3d(Line3DCollection([[np.zeros(3), e]], colors=color, linewidths=axes_linewidth))
+            ax_xyz.text(1.35*e[0], 1.35*e[1], 1.35*e[2], "$%s$" % name, fontsize=axes_fontsize/ieee_width*figsize[0], ha="center", va="center")
+        ax_xyz.set(xlim=(-0.2,1.2), ylim=(-0.2,1.2), zlim=(-0.2,1.2))
+        ax_xyz.set_box_aspect((1,1,1))
+        ax_xyz.view_init(elev=cam_elev, azim=cam_azim)
+        ax_xyz.axis("off")
+            
+    # Plot dividers between panels
+    if show_dividers:
+        fig2.add_artist(Line2D([0.02, 0.98], [0.5, 0.5], color=divider_color, linewidth=divider_linewidth))
+        fig2.add_artist(Line2D([0.5, 0.5], [0.02, 0.98], color=divider_color, linewidth=divider_linewidth))
+
+    # Save figure
+    if save_figure:
+        print("Saving %s... " % figure_file_name, end='', flush=True)
+        fig2.savefig(figure_file_name, format="pdf", bbox_inches="tight")
+        print("Done!")
+
 
 def main():
     figsize = (8,5)
@@ -232,10 +321,13 @@ def main():
                    str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
                    "N", "N", save_fig)
 
-    plotVisuals((10,10),
-                str(data_directory_path.joinpath("figure_data.json").resolve()),
-                str(figure_directory_path.joinpath("figure.pdf").resolve()),
-                save_fig)
+    # plotVisuals1(str(data_directory_path.joinpath("figure_data.json").resolve()),
+    #              str(figure_directory_path.joinpath("figure.pdf").resolve()),
+    #              save_fig)
+
+    plotVisuals2(str(data_directory_path.joinpath("figure_data.json").resolve()),
+                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
+                 save_fig, False)
 
     # plt.show(block=True)
 
