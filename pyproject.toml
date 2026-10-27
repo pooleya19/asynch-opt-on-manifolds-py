@@ -9,7 +9,7 @@ authors = [
   { name="Adam Pooley", email="pooleya19@gmail.com" },
 ]
 description = "A Python package for simulating asynchronous distributed optimization on manifolds."
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",

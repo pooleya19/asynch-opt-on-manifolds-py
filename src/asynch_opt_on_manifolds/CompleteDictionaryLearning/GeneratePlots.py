@@ -250,7 +250,7 @@ def main():
                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
                 save_fig)
 
-    # plt.show(block=True)
+    plt.show(block=True)
 
 
 if __name__ == "__main__":
