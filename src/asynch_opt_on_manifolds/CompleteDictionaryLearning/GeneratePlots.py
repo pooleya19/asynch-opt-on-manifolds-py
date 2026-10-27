@@ -122,15 +122,42 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         print("Done!")
 
 
-def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
+def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
     # Define parameters
-    m = 5
-    # recon_indices = list(range(10))
-    # recon_rows = 5
-    # recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
-    recon_indices = [0,1,3,9]
-    recon_rows = 2
-    recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+    if option==1:
+        figsize = (6,5)
+        m = 5
+        recon_indices = list(range(10))
+        recon_rows = 5
+        recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+        subfig_rows = 1
+        subfig_cols = 3
+        name_original = "Dataset\n" + r"($Y$)"
+        name_asynch = "Reconstruction\n(Algorithm 1)"
+        name_synch = "Reconstruction\n(RGD)"
+    elif option==2:
+        figsize = (5,2)
+        m = 5
+        recon_indices = [0,1,3,9]
+        recon_rows = 2
+        recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+        subfig_rows = 1
+        subfig_cols = 3
+        name_original = "Dataset\n" + r"($Y$)"
+        name_asynch = "Reconstruction\n(Algorithm 1)"
+        name_synch = "Reconstruction\n(RGD)"
+    elif option==3:
+        figsize = (6,3)
+        m = 5
+        recon_indices = list(range(8))
+        recon_rows = 1
+        recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+        subfig_rows = 3
+        subfig_cols = 1
+        name_original = "Dataset " + r"($Y$)"
+        name_asynch = "Reconstruction (Algorithm 1)"
+        name_synch = "Reconstruction (RGD)"
+
 
     # Load data
     figure_data = None
@@ -152,11 +179,8 @@ def plotVisuals(figsize, figure_data_file_name, figure_file_name, save_figure):
     v_min_Y = np.min(np.abs(Y))
     v_max_Y = np.max(np.abs(Y))
     fig2 = plt.figure(figsize=figsize, layout="constrained")
-    subfigs2 = fig2.subfigures(1, 3, wspace=0.1)
+    subfigs2 = fig2.subfigures(subfig_rows, subfig_cols, wspace=0.1, hspace=0.1)
     recon_images = {}
-    name_original = r"Dataset, $Y$" + "\n"
-    name_asynch = "Reconstruction\n(Algorithm 1)"
-    name_synch = "Reconstruction\n(RGD)"
     recon_names = [name_original, name_asynch, name_synch]
     for subfig, name in zip(subfigs2, recon_names):
         subfig.suptitle(name)
@@ -219,8 +243,7 @@ def main():
                    str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
                    "N", "N", save_fig)
 
-    # plotVisuals((6,5),
-    plotVisuals((5,2),
+    plotVisuals(3,
                 str(data_directory_path.joinpath("figure_data.json").resolve()),
                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
                 save_fig)
