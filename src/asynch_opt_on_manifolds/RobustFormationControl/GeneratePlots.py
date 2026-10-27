@@ -257,10 +257,14 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
     divider_linewidth = 0.8
 
     # Define panels
-    panels = [(x_formation, "(a) Desired Formation", (0.0, panel_height + gap)),
-              (x_initial,   "(b) Initial Poses",     (0.5, panel_height + gap)),
-              (x,           "(c) Final Poses (Algorithm 1)",       (0.0, 0.0)),
-              (x_synch,     "(d) Final Poses (RGD)",               (0.5, 0.0))]
+    # panels = [(x_formation, "(a) Desired Formation", (0.0, panel_height + gap)),
+    #           (x_initial,   "(b) Initial Poses",     (0.5, panel_height + gap)),
+    #           (x,           "(c) Final Poses (Algorithm 1)",       (0.0, 0.0)),
+    #           (x_synch,     "(d) Final Poses (RGD)",               (0.5, 0.0))]
+    panels = [(x_formation, "Desired Formation", (0.0, panel_height + gap)),
+              (x_initial,   "Initial Poses",     (0.5, panel_height + gap)),
+              (x,           "Final Poses (Algorithm 1)",       (0.0, 0.0)),
+              (x_synch,     "Final Poses (RGD)",               (0.5, 0.0))]
 
     for x_plot, caption, (x0, y0) in panels:
         ax = fig2.add_axes([x0, y0+caption_height, 0.5, panel_height-caption_height], projection="3d")

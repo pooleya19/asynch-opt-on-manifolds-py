@@ -149,7 +149,7 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
     elif option==3:
         figsize = (6,3)
         m = 5
-        recon_indices = list(range(8))
+        recon_indices = list(range(9))
         recon_rows = 1
         recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
         subfig_rows = 3
@@ -157,7 +157,9 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
         name_original = "Dataset " + r"($Y$)"
         name_asynch = "Reconstruction (Algorithm 1)"
         name_synch = "Reconstruction (RGD)"
-
+    
+    ieee_width = 3.5
+    text_fontsize = 8
 
     # Load data
     figure_data = None
@@ -183,7 +185,7 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
     recon_images = {}
     recon_names = [name_original, name_asynch, name_synch]
     for subfig, name in zip(subfigs2, recon_names):
-        subfig.suptitle(name)
+        subfig.suptitle(name, fontsize=text_fontsize/ieee_width*figsize[0])
         # subfig.supylabel(name)
         axes = subfig.subplots(recon_rows, recon_cols)
         handles = []
