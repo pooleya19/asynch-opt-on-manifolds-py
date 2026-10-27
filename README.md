@@ -14,13 +14,7 @@ We consider two example problems:
 
 ## Visuals
 
-<!-- **Formation control**
-
-![Formation control simulation](docs/formation_control.gif)
-
-**Dictionary learning**
-
-![Dictionary learning simulation](docs/dictionary_learning.gif) -->
+These are visual representations of each problem being solved by our algorithm and the baseline under asynchronous conditions, over 10,000 iterations.
 
 <table>
   <tr>
