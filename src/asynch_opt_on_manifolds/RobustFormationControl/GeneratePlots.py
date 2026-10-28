@@ -3,7 +3,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 # plt.rcParams["mathtext.fontset"] = "cm"
 plt.rcParams.update({
-    "mathtext.fontset" : "cm", 
+    "mathtext.fontset" : "cm",
+    "pdf.fonttype" : 42,   # embed TrueType fonts instead of Type 3
+    "ps.fonttype" : 42, 
     "axes.labelsize": 14,    # axis labels
     "axes.titlesize": 14,    # subplot titles
     "xtick.labelsize": 12,   # tick numbers
@@ -319,11 +321,6 @@ def main():
                    str(data_directory_path.joinpath("exp1").resolve()), 
                    str(figure_directory_path.joinpath("f_vs_B.pdf").resolve()), 
                    "B_comm", "B", save_fig)
-
-    plotExperiment(figsize, 
-                   str(data_directory_path.joinpath("exp2").resolve()), 
-                   str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
-                   "N", "N", save_fig)
 
     # plotVisuals1(str(data_directory_path.joinpath("figure_data.json").resolve()),
     #              str(figure_directory_path.joinpath("figure.pdf").resolve()),

@@ -38,7 +38,6 @@ def main():
 
     values_rng_seed = [0,1,2,3,4]
     values_B_comm = [10,20,50,100,200,500,1000,2000]
-    values_N = [4,8,16,32,64,128]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
 
@@ -54,16 +53,7 @@ def main():
                 parameter_set["save_data_name"] = str(save_data_path.joinpath("exp1").joinpath("rng%g_Bcomm%g.json" % (rng_seed, B_comm)).resolve())
                 parameter_sets.append(parameter_set)
 
-        # Experiment 2: Vary N
-        for rng_seed in values_rng_seed:
-            for N in values_N:
-                parameter_set = default_parameters.copy()
-                parameter_set["rng_seed"] = rng_seed
-                parameter_set["N"] = N
-                parameter_set["save_data_name"] = str(save_data_path.joinpath("exp2").joinpath("rng%g_N%g.json" % (rng_seed, N)).resolve())
-                parameter_sets.append(parameter_set)
-
-        # Experiment 3: Render figure and video
+        # Experiment 2: Render figure and video
         parameter_set = default_parameters.copy()
         parameter_set["save_final_fig_data"] = True
         parameter_set["save_final_fig_data_name"] = str(save_data_path.joinpath("figure_data.json").resolve())

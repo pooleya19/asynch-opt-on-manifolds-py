@@ -3,7 +3,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 # plt.rcParams["mathtext.fontset"] = "cm"
 plt.rcParams.update({
-    "mathtext.fontset" : "cm", 
+    "mathtext.fontset" : "cm",
+    "pdf.fonttype" : 42,   # embed TrueType fonts instead of Type 3
+    "ps.fonttype" : 42,
     "axes.labelsize": 14,    # axis labels
     "axes.titlesize": 14,    # subplot titles
     "xtick.labelsize": 12,   # tick numbers
