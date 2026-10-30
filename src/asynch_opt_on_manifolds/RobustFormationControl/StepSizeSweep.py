@@ -2,7 +2,7 @@ import multiprocessing
 from pathlib import Path
 from threadpoolctl import threadpool_limits
 
-from asynch_opt_on_manifolds.CompleteDictionaryLearning.Sim import run_sim
+from asynch_opt_on_manifolds.RobustFormationControl.Sim import run_sim
 
 
 def run_sim_safely(parameters):
