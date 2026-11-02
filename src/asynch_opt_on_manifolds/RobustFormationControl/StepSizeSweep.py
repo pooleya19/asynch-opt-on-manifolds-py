@@ -36,9 +36,9 @@ def main():
         "save_data_name" : None,
     }
 
-    values_rng_seed = [100,101,102]
-    values_eta = [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6]
-    values_B_N = [(500,64), (2000,8), (10,8)]
+    values_rng_seed = [100, 101, 102]
+    values_eta = [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2]
+    values_B = [10, 2000]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
 
     with multiprocessing.Pool() as pool:
@@ -46,14 +46,13 @@ def main():
 
         for rng_seed in values_rng_seed:
             for eta in values_eta:
-                for B,N in values_B_N:
+                for B in values_B:
                     parameter_set = default_parameters.copy()
                     parameter_set["rng_seed"] = rng_seed
                     parameter_set["eta"] = eta
                     parameter_set["eta_synch"] = eta
                     parameter_set["B_comm"] = B
-                    parameter_set["N"] = N
-                    parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step").joinpath("rng%g_Bcomm%g_N%g_eta%g.json" % (rng_seed, B, N, eta)).resolve())
+                    parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step").joinpath("rng%g_Bcomm%g_eta%g.json" % (rng_seed, B, eta)).resolve())
                     parameter_sets.append(parameter_set)
 
         # Run all experiments

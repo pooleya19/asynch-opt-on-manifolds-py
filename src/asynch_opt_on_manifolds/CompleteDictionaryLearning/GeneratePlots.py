@@ -243,7 +243,7 @@ def plotStepSizeSweep(data_directory_path):
     ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", yscale="log")
 
     # Find minimum fstar
-    fstar = 10^10
+    fstar = 1e10
     for key in results_dict.keys():
         fstar = min(fstar, results_dict[key]["f_star"])
 
