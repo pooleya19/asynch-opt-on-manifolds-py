@@ -1,7 +1,7 @@
 # Asynchronous Optimization on Manifolds
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This repository is associated with a paper currently under review for [ECC (European Controls Conference) 2027](https://ecc27.euca-ecc.org/).
+This repository is associated with a paper currently under review for [ECC (European Control Conference) 2027](https://ecc27.euca-ecc.org/).
 
 It simulates distributed Riemannian optimization on product manifolds under partial asynchrony. 
 Each agent owns one block of the variable, takes Riemannian gradient steps on its block, and communicates with the other agents only occasionally, using whatever (possibly stale) values it last received. 
