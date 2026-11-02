@@ -310,25 +310,57 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
         print("Done!")
 
 
+def plotStepSizeSweep(data_directory_path):
+    # Compress all results and identify unique parameter values
+    varied_parameters = ["rng_seed", "eta", "B_comm", "N"]
+    unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
+    values_rng_seed, values_eta, values_Bcomm, values_N = unique_parameter_values
+
+    # Init figure
+    colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_N)))[:,0:3] # jet, viridis, rainbow
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8,5))
+    ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", yscale="log")
+    ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", yscale="log")
+
+    # Find minimum fstar
+    fstars = [10^10 for _ in range(len(values_N))]
+    for key in list(results_dict.keys()):
+        N = key[3]
+        N_index = values_N.index(N)
+        fstars[N_index] = min(fstars[N_index], results_dict[key]["f_star"])
+
+    for key in results_dict.keys():
+        _, eta, _, N = key
+        N_index = values_N.index(N)
+
+        final_f = results_dict[key]["f"][-1]
+        final_f_synch = results_dict[key]["f_synch"][-1]
+
+        ax1.plot(eta, final_f - fstars[N_index], ".", color=colors[N_index,:])
+        ax2.plot(eta, final_f_synch - fstars[N_index], ".", color=colors[N_index,:])
+
+
 def main():
     figsize = (8,5)
-    save_fig = True
+    save_fig = False
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
 
-    plotExperiment(figsize, 
-                   str(data_directory_path.joinpath("exp1").resolve()), 
-                   str(figure_directory_path.joinpath("f_vs_B.pdf").resolve()), 
-                   "B_comm", "B", save_fig)
+    # plotExperiment(figsize, 
+    #                str(data_directory_path.joinpath("exp1").resolve()), 
+    #                str(figure_directory_path.joinpath("f_vs_B.pdf").resolve()), 
+    #                "B_comm", "B", save_fig)
 
-    # plotVisuals1(str(data_directory_path.joinpath("figure_data.json").resolve()),
+    # # plotVisuals1(str(data_directory_path.joinpath("figure_data.json").resolve()),
+    # #              str(figure_directory_path.joinpath("figure.pdf").resolve()),
+    # #              save_fig)
+
+    # plotVisuals2(str(data_directory_path.joinpath("figure_data.json").resolve()),
     #              str(figure_directory_path.joinpath("figure.pdf").resolve()),
-    #              save_fig)
+    #              save_fig, False)
 
-    plotVisuals2(str(data_directory_path.joinpath("figure_data.json").resolve()),
-                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
-                 save_fig, False)
+    plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
 
     plt.show(block=True)
 
