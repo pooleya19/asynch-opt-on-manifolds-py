@@ -25,7 +25,7 @@ def main():
         "kmax" : 10000,
         "eta" : 2.0,
         "eta_synch" : 1.8,
-        "alpha" : 1e-4,
+        "alpha" : 0,
         "delta" : 1,
         "show_fig" : False,
         "save_final_fig_data" : False,
@@ -38,8 +38,8 @@ def main():
 
     values_rng_seed = [0,1,2,3,4]
     values_B_comm = [10,20,50,100,200,500,1000,2000]
-    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
-    save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
+    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
+    save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control_alpha0")
 
     with multiprocessing.Pool() as pool:
         parameter_sets = []

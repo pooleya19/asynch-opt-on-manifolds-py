@@ -183,8 +183,9 @@ def run_sim(parameters):
     centralized_min_grad_norm = 1e-10
     # print("Solving centralized problem...")
     # f_star = runSimCentralizedRGD(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, 100000, centralized_min_grad_norm)
-    _, f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
-    # f_star = 1.88e-2
+    # _, f_star = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    f_star = 0
+    assert alpha==0
     # print("Finished solving centralized problem! f_star = %.2E" % f_star)
 
     # Initialize agents
@@ -440,9 +441,9 @@ def run_sim(parameters):
                     video.write(img_bgr)
 
     # Post run, solve centralized from both solutions
-    _, f_star1 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
-    _, f_star2 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_synch, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
-    f_star = min(f_star, min(f_star1, f_star2))
+    # _, f_star1 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    # _, f_star2 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x_synch, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
+    # f_star = min(f_star, min(f_star1, f_star2))
 
 
     time_end = time.time()

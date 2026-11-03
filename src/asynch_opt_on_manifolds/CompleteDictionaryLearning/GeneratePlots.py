@@ -39,7 +39,7 @@ def compress_results(varied_parameters, save_directory_path):
     return unique_parameter_values, results_dict
 
 
-def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parameter_name, varied_parameter_label, save_figure):
+def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parameter_name, varied_parameter_label, fstar, save_figure):
     # Compress all results and identify unique parameter values
     varied_parameters = ["rng_seed", varied_parameter_name]
     unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
@@ -67,6 +67,8 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
         avg_suboptimality = np.zeros((num_iterations))
         avg_suboptimality_synch = np.zeros((num_iterations))
+        gavg_suboptimality = np.ones((num_iterations))
+        gavg_suboptimality_synch = np.ones((num_iterations))
 
         for rng_seed in rng_seed_values:
             # Check run iterations
@@ -76,13 +78,15 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
             # Parse run metrics
             f = np.array(results_dict[(rng_seed, varied_parameter_value)]["f"])
             f_synch = np.array(results_dict[(rng_seed, varied_parameter_value)]["f_synch"])
-            f_star = results_dict[((rng_seed, varied_parameter_value))]["f_star"]
 
-            suboptimality = f - f_star
-            suboptimality_synch = f_synch - f_star
+            suboptimality = f - fstar
+            suboptimality_synch = f_synch - fstar
 
             avg_suboptimality += suboptimality
             avg_suboptimality_synch += suboptimality_synch
+
+            gavg_suboptimality *= suboptimality
+            gavg_suboptimality_synch *= suboptimality_synch
 
             ax.plot(iters, suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=1, alpha=0.1)
             ax.plot(iters, suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=1, alpha=0.1)
@@ -90,10 +94,16 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         avg_suboptimality /= num_rng_seed_values
         avg_suboptimality_synch /= num_rng_seed_values
 
-        ax.plot(iterations, avg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
-        ax.plot(iterations, avg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
+        gavg_suboptimality = np.power(gavg_suboptimality, 1/num_rng_seed_values)
+        gavg_suboptimality_synch = np.power(gavg_suboptimality_synch, 1/num_rng_seed_values)
 
-        suboptimality_reductions.append(avg_suboptimality_synch[-1] / avg_suboptimality[-1])
+        # ax.plot(iterations, avg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
+        # ax.plot(iterations, avg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
+        ax.plot(iterations, gavg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
+        ax.plot(iterations, gavg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
+
+        # suboptimality_reductions.append(avg_suboptimality_synch[-1] / avg_suboptimality[-1])
+        suboptimality_reductions.append(gavg_suboptimality_synch[-1] / gavg_suboptimality[-1])
 
     # Generate legends
     color_handles = [Line2D([], [], color=colors[i,:], linestyle="-", linewidth=2) for i in range(num_varied_parameter_values)]
@@ -284,6 +294,18 @@ def plotStepSizeSweep(data_directory_path):
     ax2.plot(values_eta[argmin_subopts_synch_gmean], subopts_synch_gmean[argmin_subopts_synch_gmean], "bo")
 
 
+def calc_fstar(directories):
+    fstar = 10**10
+    for directory in directories:
+        for object in Path(directory).iterdir():
+            if object.is_file():
+                with open(object, "r") as file:
+                    data = json.load(file)
+                    data_fstar = data["f_star"]
+                    fstar = min(fstar, data_fstar)
+    return fstar
+
+
 def main():
     figsize = (8,5)
     save_fig = False
@@ -291,23 +313,26 @@ def main():
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
 
-    # plotExperiment(figsize, 
-    #                str(data_directory_path.joinpath("exp1").resolve()), 
-    #                str(figure_directory_path.joinpath("f_vs_B.pdf").resolve()), 
-    #                "B_comm", "B", save_fig)
+    fstar = calc_fstar([str(data_directory_path.joinpath("exp1").resolve()),
+                        str(data_directory_path.joinpath("exp2").resolve())])
 
-    # plotExperiment(figsize, 
-    #                str(data_directory_path.joinpath("exp2").resolve()), 
-    #                str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
-    #                "N", "N", save_fig)
+    plotExperiment(figsize, 
+                   str(data_directory_path.joinpath("exp1").resolve()), 
+                   str(figure_directory_path.joinpath("f_vs_B.pdf").resolve()), 
+                   "B_comm", "B", fstar, save_fig)
 
-    # plotVisuals(3,
-    #             str(data_directory_path.joinpath("figure_data.json").resolve()),
-    #             str(figure_directory_path.joinpath("figure.pdf").resolve()),
-    #             save_fig)
+    plotExperiment(figsize, 
+                   str(data_directory_path.joinpath("exp2").resolve()), 
+                   str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
+                   "N", "N", fstar, save_fig)
 
-    plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
-    plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
+    plotVisuals(3,
+                str(data_directory_path.joinpath("figure_data.json").resolve()),
+                str(figure_directory_path.joinpath("figure.pdf").resolve()),
+                save_fig)
+
+    # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
+    # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
 
     plt.show(block=True)
 

@@ -23,7 +23,7 @@ def main():
         "B_comp2" : 10,
         "B_comm" : 500,
         "kmax" : 10000,
-        "eta" : 0.02,
+        "eta" : 0.01,
         "eta_synch" : 0.02,
         "beta" : 20,
         "sparsity_threshold" : 0.01,
