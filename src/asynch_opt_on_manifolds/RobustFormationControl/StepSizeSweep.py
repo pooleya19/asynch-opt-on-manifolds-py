@@ -38,7 +38,7 @@ def main():
 
     values_rng_seed = [100, 101, 102]
     values_eta = [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2] # 1.6
-    values_eta2 = [1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 2.0]
+    values_eta2 = [1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 2.0] # 2.0 asynch, 1.8 synch
     values_B = [10, 2000]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
 

@@ -396,6 +396,13 @@ def plotStepSizeSweep(data_directory_path):
     ax2.plot(values_eta, subopts_synch_gmean, "b-")
     ax2.plot(values_eta[argmin_subopts_synch_gmean], subopts_synch_gmean[argmin_subopts_synch_gmean], "bo")
 
+    print("Asynch:")
+    for i in range(len(values_eta)):
+        print("\t%.1E: %.2E%s" % (values_eta[i], subopts_gmean[i], (" (best)" if i==argmin_subopts_gmean else "")))
+    print("Synch:")
+    for i in range(len(values_eta)):
+        print("\t%.1E: %.2E%s" % (values_eta[i], subopts_synch_gmean[i], (" (best)" if i==argmin_subopts_synch_gmean else "")))
+
 
 
 
