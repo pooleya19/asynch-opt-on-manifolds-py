@@ -17,6 +17,7 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from pathlib import Path
 import json
+from scipy.stats import gmean
 
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat
 
@@ -310,34 +311,92 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
         print("Done!")
 
 
+# def plotStepSizeSweep(data_directory_path):
+#     # Compress all results and identify unique parameter values
+#     varied_parameters = ["rng_seed", "eta", "B_comm", "N"]
+#     unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
+#     values_rng_seed, values_eta, values_Bcomm, values_N = unique_parameter_values
+#     num_per_eta = len(results_dict.keys())//len(values_eta)
+
+#     # Init figure
+#     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_N)))[:,0:3] # jet, viridis, rainbow
+#     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8,5))
+#     ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
+#     ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
+
+#     # Find minimum fstar
+#     fstars = [1e10 for _ in range(len(values_N))]
+#     for key in list(results_dict.keys()):
+#         N = key[3]
+#         N_index = values_N.index(N)
+#         fstars[N_index] = min(fstars[N_index], results_dict[key]["f_star"])
+
+#     for key in results_dict.keys():
+#         _, eta, _, N = key
+#         N_index = values_N.index(N)
+
+#         final_f = results_dict[key]["f"][-1]
+#         final_f_synch = results_dict[key]["f_synch"][-1]
+
+#         ax1.plot(eta, final_f - fstars[N_index], ".", color=colors[N_index,:])
+#         ax2.plot(eta, final_f_synch - fstars[N_index], ".", color=colors[N_index,:])
+
+
+
+
 def plotStepSizeSweep(data_directory_path):
     # Compress all results and identify unique parameter values
     varied_parameters = ["rng_seed", "eta", "B_comm", "N"]
     unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
     values_rng_seed, values_eta, values_Bcomm, values_N = unique_parameter_values
+    num_per_eta = len(results_dict.keys())//len(values_eta)
 
     # Init figure
-    colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_N)))[:,0:3] # jet, viridis, rainbow
+    colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_rng_seed)))[:,0:3] # jet, viridis, rainbow
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8,5))
     ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
     ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
 
     # Find minimum fstar
-    fstars = [1e10 for _ in range(len(values_N))]
-    for key in list(results_dict.keys()):
-        N = key[3]
-        N_index = values_N.index(N)
-        fstars[N_index] = min(fstars[N_index], results_dict[key]["f_star"])
+    fstar = 1e10
+    for key in results_dict.keys():
+        fstar = min(fstar, results_dict[key]["f_star"])
+
+    subopts = np.zeros((num_per_eta, len(values_eta)))
+    subopts_i = [0] * len(values_eta)
+    subopts_synch = np.zeros((num_per_eta, len(values_eta)))
+    subopts_i_synch = [0] * len(values_eta)
 
     for key in results_dict.keys():
-        _, eta, _, N = key
-        N_index = values_N.index(N)
+        eta = key[1]
+        eta_index = values_eta.index(eta)
 
         final_f = results_dict[key]["f"][-1]
         final_f_synch = results_dict[key]["f_synch"][-1]
 
-        ax1.plot(eta, final_f - fstars[N_index], ".", color=colors[N_index,:])
-        ax2.plot(eta, final_f_synch - fstars[N_index], ".", color=colors[N_index,:])
+        subopts[subopts_i[eta_index],eta_index] = final_f - fstar
+        subopts_i[eta_index] = subopts_i[eta_index] + 1
+
+        subopts_synch[subopts_i_synch[eta_index],eta_index] = final_f_synch - fstar
+        subopts_i_synch[eta_index] = subopts_i_synch[eta_index] + 1
+
+        # ax1.plot(eta, final_f - fstar, "r.")
+        # ax2.plot(eta, final_f_synch - fstar, "r.")
+
+    subopts_gmean = gmean(subopts, axis=0)
+    subopts_synch_gmean = gmean(subopts_synch, axis=0)
+
+    argmin_subopts_gmean = np.argmin(subopts_gmean)
+    argmin_subopts_synch_gmean = np.argmin(subopts_synch_gmean)
+    
+    ax1.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), subopts.flatten(), "r.")
+    ax1.plot(values_eta, subopts_gmean, "b-")
+    ax1.plot(values_eta[argmin_subopts_gmean], subopts_gmean[argmin_subopts_gmean], "bo")
+    ax2.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), subopts_synch.flatten(), "r.")
+    ax2.plot(values_eta, subopts_synch_gmean, "b-")
+    ax2.plot(values_eta[argmin_subopts_synch_gmean], subopts_synch_gmean[argmin_subopts_synch_gmean], "bo")
+
+
 
 
 def main():
@@ -361,6 +420,7 @@ def main():
     #              save_fig, False)
 
     plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
+    plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
 
     plt.show(block=True)
 

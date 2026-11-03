@@ -15,6 +15,7 @@ plt.rcParams.update({
 from matplotlib.lines import Line2D
 from pathlib import Path
 import json
+from scipy.stats import gmean
 
 
 def compress_results(varied_parameters, save_directory_path):
@@ -235,6 +236,7 @@ def plotStepSizeSweep(data_directory_path):
     varied_parameters = ["rng_seed", "eta", "B_comm", "N"]
     unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
     values_rng_seed, values_eta, values_Bcomm, values_N = unique_parameter_values
+    num_per_eta = len(results_dict.keys())//len(values_eta)
 
     # Init figure
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_rng_seed)))[:,0:3] # jet, viridis, rainbow
@@ -247,13 +249,39 @@ def plotStepSizeSweep(data_directory_path):
     for key in results_dict.keys():
         fstar = min(fstar, results_dict[key]["f_star"])
 
+    subopts = np.zeros((num_per_eta, len(values_eta)))
+    subopts_i = [0] * len(values_eta)
+    subopts_synch = np.zeros((num_per_eta, len(values_eta)))
+    subopts_i_synch = [0] * len(values_eta)
+
     for key in results_dict.keys():
         eta = key[1]
+        eta_index = values_eta.index(eta)
+
         final_f = results_dict[key]["f"][-1]
         final_f_synch = results_dict[key]["f_synch"][-1]
 
-        ax1.plot(eta, final_f - fstar, "r.")
-        ax2.plot(eta, final_f_synch - fstar, "r.")
+        subopts[subopts_i[eta_index],eta_index] = final_f - fstar
+        subopts_i[eta_index] = subopts_i[eta_index] + 1
+
+        subopts_synch[subopts_i_synch[eta_index],eta_index] = final_f_synch - fstar
+        subopts_i_synch[eta_index] = subopts_i_synch[eta_index] + 1
+
+        # ax1.plot(eta, final_f - fstar, "r.")
+        # ax2.plot(eta, final_f_synch - fstar, "r.")
+
+    subopts_gmean = gmean(subopts, axis=0)
+    subopts_synch_gmean = gmean(subopts_synch, axis=0)
+
+    argmin_subopts_gmean = np.argmin(subopts_gmean)
+    argmin_subopts_synch_gmean = np.argmin(subopts_synch_gmean)
+    
+    ax1.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), subopts.flatten(), "r.")
+    ax1.plot(values_eta, subopts_gmean, "b-")
+    ax1.plot(values_eta[argmin_subopts_gmean], subopts_gmean[argmin_subopts_gmean], "bo")
+    ax2.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), subopts_synch.flatten(), "r.")
+    ax2.plot(values_eta, subopts_synch_gmean, "b-")
+    ax2.plot(values_eta[argmin_subopts_synch_gmean], subopts_synch_gmean[argmin_subopts_synch_gmean], "bo")
 
 
 def main():
@@ -279,6 +307,7 @@ def main():
     #             save_fig)
 
     plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
+    plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
 
     plt.show(block=True)
 
