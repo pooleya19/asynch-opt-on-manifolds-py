@@ -239,8 +239,8 @@ def plotStepSizeSweep(data_directory_path):
     # Init figure
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_rng_seed)))[:,0:3] # jet, viridis, rainbow
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8,5))
-    ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", yscale="log")
-    ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", yscale="log")
+    ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
+    ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
 
     # Find minimum fstar
     fstar = 1e10

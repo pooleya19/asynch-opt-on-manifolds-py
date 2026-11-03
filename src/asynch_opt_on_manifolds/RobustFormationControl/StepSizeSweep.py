@@ -37,22 +37,36 @@ def main():
     }
 
     values_rng_seed = [100, 101, 102]
-    values_eta = [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2]
+    values_eta = [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2] # 1.6
+    values_eta2 = [1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 2.0]
     values_B = [10, 2000]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
 
     with multiprocessing.Pool() as pool:
         parameter_sets = []
 
+        # Sweep 1
+        # for rng_seed in values_rng_seed:
+        #     for eta in values_eta:
+        #         for B in values_B:
+        #             parameter_set = default_parameters.copy()
+        #             parameter_set["rng_seed"] = rng_seed
+        #             parameter_set["eta"] = eta
+        #             parameter_set["eta_synch"] = eta
+        #             parameter_set["B_comm"] = B
+        #             parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step").joinpath("rng%g_Bcomm%g_eta%g.json" % (rng_seed, B, eta)).resolve())
+        #             parameter_sets.append(parameter_set)
+
+        # Sweep 2
         for rng_seed in values_rng_seed:
-            for eta in values_eta:
+            for eta in values_eta2:
                 for B in values_B:
                     parameter_set = default_parameters.copy()
                     parameter_set["rng_seed"] = rng_seed
                     parameter_set["eta"] = eta
                     parameter_set["eta_synch"] = eta
                     parameter_set["B_comm"] = B
-                    parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step").joinpath("rng%g_Bcomm%g_eta%g.json" % (rng_seed, B, eta)).resolve())
+                    parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step2").joinpath("rng%g_Bcomm%g_eta%g.json" % (rng_seed, B, eta)).resolve())
                     parameter_sets.append(parameter_set)
 
         # Run all experiments

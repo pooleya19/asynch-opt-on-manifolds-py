@@ -40,15 +40,30 @@ def main():
     }
 
     values_rng_seed = [100,101,102]
-    values_eta = [0.0025, 0.005, 0.01, 0.02, 0.04, 0.08, 0.16]
+    values_eta = [0.0025, 0.005, 0.01, 0.02, 0.04, 0.08, 0.16] # 0.02
+    values_eta2 = [0.01, 0.015, 0.02, 0.025, 0.03] # 0.02
     values_B_N = [(500,64), (2000,8), (10,8)]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning")
 
     with multiprocessing.Pool() as pool:
         parameter_sets = []
 
+        # Sweep 1
+        # for rng_seed in values_rng_seed:
+        #     for eta in values_eta:
+        #         for B,N in values_B_N:
+        #             parameter_set = default_parameters.copy()
+        #             parameter_set["rng_seed"] = rng_seed
+        #             parameter_set["eta"] = eta
+        #             parameter_set["eta_synch"] = eta
+        #             parameter_set["B_comm"] = B
+        #             parameter_set["N"] = N
+        #             parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step").joinpath("rng%g_Bcomm%g_N%g_eta%g.json" % (rng_seed, B, N, eta)).resolve())
+        #             parameter_sets.append(parameter_set)
+
+        # Sweep 2
         for rng_seed in values_rng_seed:
-            for eta in values_eta:
+            for eta in values_eta2:
                 for B,N in values_B_N:
                     parameter_set = default_parameters.copy()
                     parameter_set["rng_seed"] = rng_seed
@@ -56,7 +71,7 @@ def main():
                     parameter_set["eta_synch"] = eta
                     parameter_set["B_comm"] = B
                     parameter_set["N"] = N
-                    parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step").joinpath("rng%g_Bcomm%g_N%g_eta%g.json" % (rng_seed, B, N, eta)).resolve())
+                    parameter_set["save_data_name"] = str(save_data_path.joinpath("exp_step2").joinpath("rng%g_Bcomm%g_N%g_eta%g.json" % (rng_seed, B, N, eta)).resolve())
                     parameter_sets.append(parameter_set)
 
         # Run all experiments
