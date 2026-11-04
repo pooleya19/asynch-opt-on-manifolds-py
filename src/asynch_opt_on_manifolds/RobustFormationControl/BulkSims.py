@@ -22,7 +22,8 @@ def main():
         "B_comp1" : 2,
         "B_comp2" : 10,
         "B_comm" : 500,
-        "kmax" : 10000,
+        "kmax" : 5e5,
+        "f_stop" : 1e-8,
         "eta" : 2.0,
         "eta_synch" : 1.8,
         "alpha" : 0,
@@ -37,7 +38,7 @@ def main():
     }
 
     values_rng_seed = [0,1,2,3,4]
-    values_B_comm = [10,20,50,100,200,500,1000,2000]
+    values_B_comm = [10,20,50,100,200,500,1000]
     save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
     save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control_alpha0")
 
@@ -55,6 +56,7 @@ def main():
 
         # Experiment 2: Render figure and video
         parameter_set = default_parameters.copy()
+        parameter_set["kmax"] = 1e4
         parameter_set["save_final_fig_data"] = True
         parameter_set["save_final_fig_data_name"] = str(save_data_path.joinpath("figure_data.json").resolve())
         parameter_set["save_video"] = True

@@ -141,6 +141,7 @@ def run_sim(parameters):
     B_comp2 = parameters["B_comp2"]
     B_comm = parameters["B_comm"]
     kmax = parameters["kmax"]
+    f_stop = parameters["f_stop"]
     eta = parameters["eta"]
     eta_synch = parameters["eta_synch"]
     alpha = parameters["alpha"]
@@ -159,7 +160,7 @@ def run_sim(parameters):
     render_mod = 100
 
     # Init RNG
-    rng_static = np.random.default_rng(seed=0)
+    rng_static = np.random.default_rng(seed=2)
     rng_sim = np.random.default_rng(seed=rng_seed)
 
     # Generate prior poses
@@ -305,43 +306,52 @@ def run_sim(parameters):
     x_synch_map = {0:list(x_initial)}
 
     # Run simulation
-    for k in range(kmax):
+    k=-1
+    asynch_done = False
+    synch_done = False
+    # for k in range(kmax):
+    while not asynch_done or not synch_done:
+        k += 1
         # Send
         for i in range(N):
             if iteration_to_send[i] == k:
                 iteration_to_send[i] = k + rng_sim.integers(low=1,high=(B_comm+1)//2, endpoint=True)
                 # Let asynch agents send
-                mailbox_outgoing[i] = agents[i].x[i]
+                if not asynch_done:
+                    mailbox_outgoing[i] = agents[i].x[i]
                 # Let synch agents send
-                if not agents_synch[i].sent_current:
-                    agents_synch[i].sent_current = True
-                    message = (i, agents_synch[i].current_iteration, agents_synch[i].x[i])
-                    for j in range(N):
-                        if j != i:
-                            mailbox_synch_incoming[j].append(message)
+                if not synch_done:
+                    if not agents_synch[i].sent_current:
+                        agents_synch[i].sent_current = True
+                        message = (i, agents_synch[i].current_iteration, agents_synch[i].x[i])
+                        for j in range(N):
+                            if j != i:
+                                mailbox_synch_incoming[j].append(message)
 
         # Receive
         for i in range(N):
             if iteration_to_recv[i] == k:
                 iteration_to_recv[i] = k + rng_sim.integers(low=1,high=(B_comm+1)//2, endpoint=True)
                 # Let asynch agents receive
-                for j in range(N):
-                    if i != j:
-                        agents[i].x[j] = mailbox_outgoing[j]
+                if not asynch_done:
+                    for j in range(N):
+                        if i != j:
+                            agents[i].x[j] = mailbox_outgoing[j]
                 # Let synch agents receive
-                for message in mailbox_synch_incoming[i]:
-                    j, message_iteration, message_xj = message
-                    if message_iteration < agents_synch[i].current_iteration:
-                        pass
-                    elif message_iteration == agents_synch[i].current_iteration:
-                        agents_synch[i].x[j] = message_xj
-                    elif message_iteration == agents_synch[i].current_iteration + 1:
-                        agents_synch[i].next_x[j] = message_xj
-                    else:
-                        pass
-                        # print("Error: Agent %g at iteration %g received a message from agent %g, timestamped at iteration %g." % (i, agents_synch[i].current_iteration, j, message_iteration))
-                        # return
-                mailbox_synch_incoming[i] = []
+                if not synch_done:
+                    for message in mailbox_synch_incoming[i]:
+                        j, message_iteration, message_xj = message
+                        if message_iteration < agents_synch[i].current_iteration:
+                            pass
+                        elif message_iteration == agents_synch[i].current_iteration:
+                            agents_synch[i].x[j] = message_xj
+                        elif message_iteration == agents_synch[i].current_iteration + 1:
+                            agents_synch[i].next_x[j] = message_xj
+                        else:
+                            pass
+                            # print("Error: Agent %g at iteration %g received a message from agent %g, timestamped at iteration %g." % (i, agents_synch[i].current_iteration, j, message_iteration))
+                            # return
+                    mailbox_synch_incoming[i] = []
 
         # Compute
         agent_updated_this_k = False
@@ -350,58 +360,66 @@ def run_sim(parameters):
             if iteration_to_comp[i] == k:
                 iteration_to_comp[i] = k + rng_sim.integers(low=1,high=B_comp[i], endpoint=True)
                 agent_updated_this_k = True
-                agents[i].compute()
-                agent_synch_updated_this_k |= agents_synch[i].compute()
+                if not asynch_done:
+                    agents[i].compute()
+                if not synch_done:
+                    agent_synch_updated_this_k |= agents_synch[i].compute()
 
-        min_x_synch_iteration = agents_synch[0].current_iteration
-        for i in range(1,N):
-            min_x_synch_iteration = min(min_x_synch_iteration, agents_synch[i].current_iteration)
+        if not synch_done:
+            min_x_synch_iteration = agents_synch[0].current_iteration
+            for i in range(1,N):
+                min_x_synch_iteration = min(min_x_synch_iteration, agents_synch[i].current_iteration)
 
-        if agent_synch_updated_this_k:
-            changed_x_synch = True
+            if agent_synch_updated_this_k:
+                changed_x_synch = True
 
-            # Update analytical synch true x map
-            for i in range(N):
-                synch_iteration_i = agents_synch[i].current_iteration
-                synch_xi = agents_synch[i].x[i]
-                if synch_iteration_i not in x_synch_map:
-                    x_synch_map[synch_iteration_i] = [None for _ in range(N)]
-                x_synch_map[synch_iteration_i][i] = synch_xi
+                # Update analytical synch true x map
+                for i in range(N):
+                    synch_iteration_i = agents_synch[i].current_iteration
+                    synch_xi = agents_synch[i].x[i]
+                    if synch_iteration_i not in x_synch_map:
+                        x_synch_map[synch_iteration_i] = [None for _ in range(N)]
+                    x_synch_map[synch_iteration_i][i] = synch_xi
 
-            # Remove outdated synch x from map
-            for map_k in list(x_synch_map.keys()):
-                if map_k < min_x_synch_iteration:
-                    del x_synch_map[map_k]
-            assert len(x_synch_map) <= N, "Length of x_synch_map exceeds expected length (current length = %g)" % len(x_synch_map)
+                # Remove outdated synch x from map
+                for map_k in list(x_synch_map.keys()):
+                    if map_k < min_x_synch_iteration:
+                        del x_synch_map[map_k]
+                assert len(x_synch_map) <= N, "Length of x_synch_map exceeds expected length (current length = %g)" % len(x_synch_map)
 
-        if agent_updated_this_k:
-            changed_x = True
+        if not asynch_done:
+            if agent_updated_this_k:
+                changed_x = True
 
         # Compute metrics
         if k % compute_metrics_mod == 0:
             # Check if x needs to be recomputed
-            if changed_x:
-                changed_x = False
-                # Recompute x
-                for i in range(N):
-                    x[i] = agents[i].x[i]
+            if not asynch_done:
+                if changed_x:
+                    changed_x = False
+                    # Recompute x
+                    for i in range(N):
+                        x[i] = agents[i].x[i]
 
-                # Recompute f
-                f = calculate_f(data, x)
+                    # Recompute f
+                    f = calculate_f(data, x)
             
             # Check if x_synch needs to be recomputed
-            if changed_x_synch:
-                changed_x_synch = False
-                # Recompute x_synch
-                x_synch = x_synch_map[min_x_synch_iteration]
-                iteration_synch = min_x_synch_iteration
+            if not synch_done:
+                if changed_x_synch:
+                    changed_x_synch = False
+                    # Recompute x_synch
+                    x_synch = x_synch_map[min_x_synch_iteration]
+                    iteration_synch = min_x_synch_iteration
 
-                # Recompute f_synch
-                f_synch = calculate_f(data, x_synch)
+                    # Recompute f_synch
+                    f_synch = calculate_f(data, x_synch)
 
             data_iteration.append(k)
-            data_f.append(f)
-            data_f_synch.append(f_synch)
+            if not asynch_done:
+                data_f.append(f)
+            if not synch_done:                
+                data_f_synch.append(f_synch)
             ax1_y_min = min(ax1_y_min, min(f-f_star, f_synch-f_star))
             ax1_y_max = max(ax1_y_max, max(f-f_star, f_synch-f_star))
 
@@ -412,8 +430,10 @@ def run_sim(parameters):
                 # print("\tf       - f_star = %.2E" % (f-f_star))
                 # print("\tf_synch - f_star = %.2E" % (f_synch-f_star))
 
-                plot_f.set(xdata=data_iteration, ydata=np.array(data_f)-f_star)
-                plot_f_synch.set(xdata=data_iteration, ydata=np.array(data_f_synch)-f_star)
+                if not asynch_done:
+                    plot_f.set(xdata=data_iteration, ydata=np.array(data_f)-f_star)
+                if not synch_done:        
+                    plot_f_synch.set(xdata=data_iteration, ydata=np.array(data_f_synch)-f_star)
                 ax1.set(xlim=(0,k), ylim=(ax1_y_min,ax1_y_max), title="F (asynch): %.2E\nF (synch): %.2E" % (f,f_synch))
 
                 positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x, formation_edges, axes_length)
@@ -439,6 +459,13 @@ def run_sim(parameters):
                     img = np.asarray(fig2.canvas.buffer_rgba())[:,:,:3]
                     img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                     video.write(img_bgr)
+
+        # Check stopping criteria
+        if f <= f_stop or k >= kmax:
+            asynch_done = True
+        if f_synch <= f_stop or k >= kmax:
+            synch_done = True
+        
 
     # Post run, solve centralized from both solutions
     # _, f_star1 = runSimCentralizedRBB(ProductManifold([EuclideanManifold(), SphereManifold()]), x, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
@@ -496,7 +523,8 @@ if __name__ == "__main__":
         "B_comp1" : 2,
         "B_comp2" : 10,
         "B_comm" : 500,
-        "kmax" : 10000,
+        "kmax" : 1e4,
+        "f_stop" : 1e-12,
         "eta" : 0.2,
         "eta_synch" : 0.2,
         "alpha" : 1e-4,

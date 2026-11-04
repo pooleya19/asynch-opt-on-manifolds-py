@@ -22,10 +22,11 @@ def main():
         "B_comp1" : 2,
         "B_comp2" : 10,
         "B_comm" : 500,
-        "kmax" : 10000,
+        "kmax" : 5e5,
+        "f_stop" : 1e-8,
         "eta" : 0.2,
         "eta_synch" : 0.2,
-        "alpha" : 1e-4,
+        "alpha" : 0,
         "delta" : 1,
         "show_fig" : False,
         "save_final_fig_data" : False,
@@ -37,10 +38,10 @@ def main():
     }
 
     values_rng_seed = [100, 101, 102]
-    values_eta = [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2] # 1.6
+    values_eta = [0.2, 0.4, 0.8, 1.6] # 1.6
     values_eta2 = [1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 2.0] # 2.0 asynch, 1.8 synch
-    values_B = [10, 2000]
-    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
+    values_B = [10, 1000]
+    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
 
     with multiprocessing.Pool() as pool:
         parameter_sets = []

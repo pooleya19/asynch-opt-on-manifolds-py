@@ -57,30 +57,60 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_varied_parameter_values))[:,0:3] # jet, viridis, rainbow
     fig, (ax) = plt.subplots(1,1, figsize=figsize)
     ax.set(xlabel="Iteration,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
+    ax.set(xscale="log")
 
-    # Get iterations
-    iterations = np.array(results_dict[(rng_seed_values[0], varied_parameter_values[0])]["iterations"])
-    num_iterations = np.size(iterations)
-
-    # Init suboptimality reductions
-    suboptimality_reductions = []
+    # Init speedups
+    speedups = []
 
     # Parse through all runs
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        avg_suboptimality = np.zeros((num_iterations))
-        avg_suboptimality_synch = np.zeros((num_iterations))
-        gavg_suboptimality = np.ones((num_iterations))
-        gavg_suboptimality_synch = np.ones((num_iterations))
+
+        # Get iterations
+        iterations = []
+        length_asynch = 0
+        length_synch = 0
 
         for rng_seed in rng_seed_values:
-            # Check run iterations
             iters = np.array(results_dict[(rng_seed,varied_parameter_value)]["iterations"])
-            assert np.array_equal(iterations, iters)
+            if len(iters) > len(iterations):
+                iterations = iters
 
+            f = np.array(results_dict[(rng_seed, varied_parameter_value)]["f"])
+            f_synch = np.array(results_dict[(rng_seed, varied_parameter_value)]["f_synch"])
+
+            length_asynch = max(length_asynch, len(f))            
+            length_synch = max(length_synch, len(f_synch))
+
+        iterations_asynch = iterations[0:length_asynch]
+        iterations_synch = iterations[0:length_synch]
+        avg_suboptimality = np.zeros((length_asynch))
+        avg_suboptimality_synch = np.zeros((length_synch))
+        gavg_suboptimality = np.ones((length_asynch))
+        gavg_suboptimality_synch = np.ones((length_synch))
+
+        converged_asynch = True
+        converged_synch =  True
+
+        for rng_seed in rng_seed_values:
             # Parse run metrics
             f = np.array(results_dict[(rng_seed, varied_parameter_value)]["f"])
             f_synch = np.array(results_dict[(rng_seed, varied_parameter_value)]["f_synch"])
+            f_stop = results_dict[(rng_seed, varied_parameter_value)]["parameters"]["f_stop"]
+
+            if f[-1] > f_stop:
+                converged_asynch = False
+                f = np.concat((f,f[-1]*np.ones((length_asynch-len(f)))))
+            else:
+                f[f<f_stop] = f_stop
+                f = np.concat((f,f_stop*np.ones((length_asynch-len(f)))))
+
+            if f_synch[-1] > f_stop:
+                converged_synch = False
+                f_synch = np.concat((f_synch,f_synch[-1]*np.ones((length_synch-len(f_synch)))))
+            else:
+                f_synch[f_synch<f_stop] = f_stop
+                f_synch = np.concat((f_synch,f_stop*np.ones((length_synch-len(f_synch)))))
 
             suboptimality = f - fstar
             suboptimality_synch = f_synch - fstar
@@ -91,8 +121,8 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
             gavg_suboptimality *= suboptimality
             gavg_suboptimality_synch *= suboptimality_synch
 
-            ax.plot(iters, suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=1, alpha=0.1)
-            ax.plot(iters, suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=1, alpha=0.1)
+            ax.plot(iterations_asynch, suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=1, alpha=0.1)
+            ax.plot(iterations_synch,  suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=1, alpha=0.1)
 
         avg_suboptimality /= num_rng_seed_values
         avg_suboptimality_synch /= num_rng_seed_values
@@ -102,11 +132,19 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
         # ax.plot(iterations, avg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
         # ax.plot(iterations, avg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
-        ax.plot(iterations, gavg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
-        ax.plot(iterations, gavg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
+        ax.plot(iterations_asynch, gavg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
+        ax.plot(iterations_synch,  gavg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
 
-        # suboptimality_reductions.append(avg_suboptimality_synch[-1] / avg_suboptimality[-1])
-        suboptimality_reductions.append(gavg_suboptimality_synch[-1] / gavg_suboptimality[-1])
+        if converged_asynch:
+            if converged_synch:
+                speedups.append(length_synch - length_asynch)
+            else:
+                speedups.append(np.inf)
+        else:
+            if converged_synch:
+                speedups.append(0)
+            else:
+                speedups.append(np.nan)
 
     # Generate legends
     color_handles = [Line2D([], [], color=colors[i,:], linestyle="-", linewidth=2) for i in range(num_varied_parameter_values)]
@@ -115,21 +153,26 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
                       Line2D([], [], color="black", linestyle=":", linewidth=2)]
     style_labels = ["Algorithm 1", "RGD"]
 
-    leg1 = ax.legend(color_handles, color_labels, loc="lower left")
+    leg1 = ax.legend(style_handles, style_labels, loc="lower left")
     ax.add_artist(leg1)
-
     fig.canvas.draw()
     bb = leg1.get_window_extent(fig.canvas.get_renderer())
     bb = bb.transformed(ax.transAxes.inverted())
+    ax.legend(color_handles, color_labels, loc="lower left", bbox_to_anchor=(0, bb.y1), bbox_transform=ax.transAxes)
 
-    ax.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax.transAxes)
+    # leg1 = ax.legend(color_handles, color_labels, loc="lower left")
+    # ax.add_artist(leg1)
+    # fig.canvas.draw()
+    # bb = leg1.get_window_extent(fig.canvas.get_renderer())
+    # bb = bb.transformed(ax.transAxes.inverted())
+    # ax.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax.transAxes)
 
-    suboptimality_reductions = np.floor(suboptimality_reductions)
+    speedups = np.floor(speedups)
 
-    print("Vary %s: Suboptimality reduction: %.1f-%.1f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
+    print("Vary %s: Speed Ups: %.1f-%.1f" % (varied_parameter_label,np.min(speedups), np.max(speedups)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        print("\t%s=%g: %g" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
+        print("\t%s=%g: %g" % (varied_parameter_label, varied_parameter_value, speedups[varied_parameter_index]))
 
     # Save figure
     if save_figure:
@@ -231,7 +274,8 @@ def plotVisuals1(figure_data_file_name, figure_file_name, save_figure):
         print("Done!")
 
 def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_dividers):
-    figsize = (10,6.6)
+    # figsize = (10,6.6)
+    figsize = (12,3.3)
     ieee_width = 3.5
 
     text_fontsize = 8
@@ -255,7 +299,7 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
     fig2 = plt.figure(figsize=figsize, dpi=150)
     axes_length = 0.1
     axes_linewidth = 1.5
-    edge_linewidth = 0.5
+    edge_linewidth = 0.3
 
     lim_xy = 0.72
     lim_z = 0.5
@@ -264,23 +308,25 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
     cam_elev = 18
     cam_azim = -60
     caption_height = 0.07
-    panel_height = (1-gap)/2
+    # panel_height = (1-gap)/2
+    panel_height = 1-gap
 
     divider_color = 0.8*np.ones((3))
     divider_linewidth = 0.8
 
     # Define panels
-    # panels = [(x_formation, "(a) Desired Formation", (0.0, panel_height + gap)),
-    #           (x_initial,   "(b) Initial Poses",     (0.5, panel_height + gap)),
-    #           (x,           "(c) Final Poses (Algorithm 1)",       (0.0, 0.0)),
-    #           (x_synch,     "(d) Final Poses (RGD)",               (0.5, 0.0))]
-    panels = [(x_formation, "Desired Formation", (0.0, panel_height + gap)),
-              (x_initial,   "Initial Poses",     (0.5, panel_height + gap)),
-              (x,           "Final Poses (Algorithm 1)",       (0.0, 0.0)),
-              (x_synch,     "Final Poses (RGD)",               (0.5, 0.0))]
+    # panels = [(x_formation, "Desired Formation", (0.0, panel_height + gap)),
+    #           (x_initial,   "Initial Poses",     (0.5, panel_height + gap)),
+    #           (x,           "Final Poses (Algorithm 1)",       (0.0, 0.0)),
+    #           (x_synch,     "Final Poses (RGD)",               (0.5, 0.0))]
+    panels = [(x_formation, "Desired Formation", (0.0, 0.0)),
+              (x_initial,   "Initial Poses",     (0.25, 0.0)),
+              (x,           "Final Poses (Algorithm 1)",       (0.5, 0.0)),
+              (x_synch,     "Final Poses (RGD)",               (0.75, 0.0))]
 
     for x_plot, caption, (x0, y0) in panels:
-        ax = fig2.add_axes([x0, y0+caption_height, 0.5, panel_height-caption_height], projection="3d")
+        # ax = fig2.add_axes([x0, y0+caption_height, 0.5, panel_height-caption_height], projection="3d")
+        ax = fig2.add_axes([x0, y0+caption_height, 0.25, panel_height-caption_height], projection="3d")
 
         # Plot formations
         positions, axes_x, axes_y, axes_z, edges = generate_formation_visuals(x_plot, formation_edges, axes_length)
@@ -290,68 +336,38 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
         ax.add_collection3d(Line3DCollection(axes_z, colors="b", linewidths=axes_linewidth, clip_on=False))
         ax.add_collection3d(Line3DCollection(edges, colors="gray", linewidths=edge_linewidth, clip_on=False))
         ax.set(xlim=(-lim_xy,lim_xy), ylim=(-lim_xy,lim_xy), zlim=(-lim_z,lim_z))
-        ax.set_box_aspect((1, 1, lim_z/lim_xy), zoom=1.8)
+        # ax.set_box_aspect((1, 1, lim_z/lim_xy), zoom=1.8)
+        ax.set_box_aspect((1, 1, lim_z/lim_xy), zoom=1.4)
         ax.view_init(elev=cam_elev, azim=cam_azim)
         ax.axis("off")
 
         # Plot title
-        fig2.text(x0+0.25, y0+caption_height/2, caption, ha="center", va="center", fontsize=text_fontsize/ieee_width*figsize[0])
+        # fig2.text(x0+0.25, y0+caption_height/2, caption, ha="center", va="center", fontsize=text_fontsize/ieee_width*figsize[0])
+        fig2.text(x0+0.125, y0+caption_height/2, caption, ha="center", va="center", fontsize=18)
 
         # Plot x-y-z axes indicator
-        ax_xyz = fig2.add_axes([x0+0.015, y0+caption_height+0.02, 0.07, 0.11], projection="3d")
+        ax_xyz = fig2.add_axes([x0+0.007, y0+caption_height+0.02, 0.07, 0.11], projection="3d")
         for c, (name, color) in enumerate(zip("xyz", "rgb")):
             e = np.zeros(3)
             e[c] = 1
             ax_xyz.add_collection3d(Line3DCollection([[np.zeros(3), e]], colors=color, linewidths=axes_linewidth))
-            ax_xyz.text(1.35*e[0], 1.35*e[1], 1.35*e[2], "$%s$" % name, fontsize=axes_fontsize/ieee_width*figsize[0], ha="center", va="center")
+            # ax_xyz.text(1.35*e[0], 1.35*e[1], 1.35*e[2], "$%s$" % name, fontsize=axes_fontsize/ieee_width*figsize[0], ha="center", va="center")
+            ax_xyz.text(1.8*e[0], 1.8*e[1], 1.8*e[2], "$%s$" % name, fontsize=15, ha="center", va="center")
         ax_xyz.set(xlim=(-0.2,1.2), ylim=(-0.2,1.2), zlim=(-0.2,1.2))
         ax_xyz.set_box_aspect((1,1,1))
         ax_xyz.view_init(elev=cam_elev, azim=cam_azim)
         ax_xyz.axis("off")
             
     # Plot dividers between panels
-    if show_dividers:
-        fig2.add_artist(Line2D([0.02, 0.98], [0.5, 0.5], color=divider_color, linewidth=divider_linewidth))
-        fig2.add_artist(Line2D([0.5, 0.5], [0.02, 0.98], color=divider_color, linewidth=divider_linewidth))
+    # if show_dividers:
+    #     fig2.add_artist(Line2D([0.02, 0.98], [0.5, 0.5], color=divider_color, linewidth=divider_linewidth))
+    #     fig2.add_artist(Line2D([0.5, 0.5], [0.02, 0.98], color=divider_color, linewidth=divider_linewidth))
 
     # Save figure
     if save_figure:
         print("Saving %s... " % figure_file_name, end='', flush=True)
         fig2.savefig(figure_file_name, format="pdf", bbox_inches="tight")
         print("Done!")
-
-
-# def plotStepSizeSweep(data_directory_path):
-#     # Compress all results and identify unique parameter values
-#     varied_parameters = ["rng_seed", "eta", "B_comm", "N"]
-#     unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
-#     values_rng_seed, values_eta, values_Bcomm, values_N = unique_parameter_values
-#     num_per_eta = len(results_dict.keys())//len(values_eta)
-
-#     # Init figure
-#     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, len(values_N)))[:,0:3] # jet, viridis, rainbow
-#     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8,5))
-#     ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
-#     ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
-
-#     # Find minimum fstar
-#     fstars = [1e10 for _ in range(len(values_N))]
-#     for key in list(results_dict.keys()):
-#         N = key[3]
-#         N_index = values_N.index(N)
-#         fstars[N_index] = min(fstars[N_index], results_dict[key]["f_star"])
-
-#     for key in results_dict.keys():
-#         _, eta, _, N = key
-#         N_index = values_N.index(N)
-
-#         final_f = results_dict[key]["f"][-1]
-#         final_f_synch = results_dict[key]["f_synch"][-1]
-
-#         ax1.plot(eta, final_f - fstars[N_index], ".", color=colors[N_index,:])
-#         ax2.plot(eta, final_f_synch - fstars[N_index], ".", color=colors[N_index,:])
-
-
 
 
 def plotStepSizeSweep(data_directory_path):
@@ -367,51 +383,60 @@ def plotStepSizeSweep(data_directory_path):
     ax1.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
     ax2.set(xlabel=r"Step size, $\eta$", ylabel=r"Final Suboptimality,  $f(x(k_{max})) - f^\star$", xscale="log", yscale="log")
 
-    # Find minimum fstar
-    fstar = 1e10
-    for key in results_dict.keys():
-        fstar = min(fstar, results_dict[key]["f_star"])
+    fstar = 0
 
-    subopts = np.zeros((num_per_eta, len(values_eta)))
-    subopts_i = [0] * len(values_eta)
-    subopts_synch = np.zeros((num_per_eta, len(values_eta)))
-    subopts_i_synch = [0] * len(values_eta)
+    # subopts = np.zeros((num_per_eta, len(values_eta)))
+    # subopts_i = [0] * len(values_eta)
+    # subopts_synch = np.zeros((num_per_eta, len(values_eta)))
+    # subopts_i_synch = [0] * len(values_eta)
+
+    convergence_iters = np.inf * np.ones((num_per_eta, len(values_eta)))
+    convergence_iters_i = [0] * len(values_eta)
+    convergence_iters_synch = np.inf * np.ones((num_per_eta, len(values_eta)))
+    convergence_iters_synch_i = [0] * len(values_eta)
 
     for key in results_dict.keys():
         eta = key[1]
         eta_index = values_eta.index(eta)
 
-        final_f = results_dict[key]["f"][-1]
-        final_f_synch = results_dict[key]["f_synch"][-1]
+        f = results_dict[key]["f"]
+        f_synch = results_dict[key]["f_synch"]
+        f_stop = results_dict[key]["parameters"]["f_stop"]
 
-        subopts[subopts_i[eta_index],eta_index] = final_f - fstar
-        subopts_i[eta_index] = subopts_i[eta_index] + 1
+        if f[-1] <= f_stop:
+            convergence_iters[convergence_iters_i[eta_index], eta_index] = len(f)
+        else:
+            convergence_iters[convergence_iters_i[eta_index], eta_index] = np.inf
+        convergence_iters_i[eta_index] = convergence_iters_i[eta_index] + 1
 
-        subopts_synch[subopts_i_synch[eta_index],eta_index] = final_f_synch - fstar
-        subopts_i_synch[eta_index] = subopts_i_synch[eta_index] + 1
+        if f_synch[-1] <= f_stop:
+            convergence_iters_synch[convergence_iters_synch_i[eta_index], eta_index] = len(f_synch)
+        else:
+            convergence_iters_synch[convergence_iters_synch_i[eta_index], eta_index] = np.inf
+        convergence_iters_synch_i[eta_index] = convergence_iters_synch_i[eta_index] + 1
 
         # ax1.plot(eta, final_f - fstar, "r.")
         # ax2.plot(eta, final_f_synch - fstar, "r.")
 
-    subopts_gmean = gmean(subopts, axis=0)
-    subopts_synch_gmean = gmean(subopts_synch, axis=0)
+    convergence_iters_mean = np.mean(convergence_iters, axis=0)
+    convergence_iters_synch_mean = np.mean(convergence_iters_synch, axis=0)
 
-    argmin_subopts_gmean = np.argmin(subopts_gmean)
-    argmin_subopts_synch_gmean = np.argmin(subopts_synch_gmean)
+    argmin_con = np.argmin(convergence_iters_mean)
+    argmin_con_synch = np.argmin(convergence_iters_synch_mean)
     
-    ax1.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), subopts.flatten(), "r.")
-    ax1.plot(values_eta, subopts_gmean, "b-")
-    ax1.plot(values_eta[argmin_subopts_gmean], subopts_gmean[argmin_subopts_gmean], "bo")
-    ax2.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), subopts_synch.flatten(), "r.")
-    ax2.plot(values_eta, subopts_synch_gmean, "b-")
-    ax2.plot(values_eta[argmin_subopts_synch_gmean], subopts_synch_gmean[argmin_subopts_synch_gmean], "bo")
+    ax1.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), convergence_iters.flatten(), "r.")
+    ax1.plot(values_eta, convergence_iters_mean, "b-")
+    ax1.plot(values_eta[argmin_con], convergence_iters_mean[argmin_con], "bo")
+    ax2.plot(np.tile(values_eta, (num_per_eta,1)).flatten(), convergence_iters_synch.flatten(), "r.")
+    ax2.plot(values_eta, convergence_iters_synch_mean, "b-")
+    ax2.plot(values_eta[argmin_con_synch], convergence_iters_synch_mean[argmin_con_synch], "bo")
 
     print("Asynch:")
     for i in range(len(values_eta)):
-        print("\t%.1E: %.2E%s" % (values_eta[i], subopts_gmean[i], (" (best)" if i==argmin_subopts_gmean else "")))
+        print("\t%.1E: %.2E%s" % (values_eta[i], convergence_iters_mean[i], (" (best)" if i==argmin_con else "")))
     print("Synch:")
     for i in range(len(values_eta)):
-        print("\t%.1E: %.2E%s" % (values_eta[i], subopts_synch_gmean[i], (" (best)" if i==argmin_subopts_synch_gmean else "")))
+        print("\t%.1E: %.2E%s" % (values_eta[i], convergence_iters_synch_mean[i], (" (best)" if i==argmin_con_synch else "")))
 
 
 def calc_fstar(directories):
@@ -427,8 +452,8 @@ def calc_fstar(directories):
 
 
 def main():
-    figsize = (8,5)
-    save_fig = False
+    figsize = (8,4)
+    save_fig = True
     # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     # figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
@@ -453,7 +478,7 @@ def main():
     # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
     # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
 
-    plt.show(block=True)
+    plt.show(block=False)
 
 
 if __name__ == "__main__":

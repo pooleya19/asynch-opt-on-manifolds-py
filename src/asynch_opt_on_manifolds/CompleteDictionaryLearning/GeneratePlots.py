@@ -148,6 +148,7 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
         name_original = "Dataset\n" + r"($Y$)"
         name_asynch = "Reconstruction\n(Algorithm 1)"
         name_synch = "Reconstruction\n(RGD)"
+        text_fontsize = 8
     elif option==2:
         figsize = (5,2)
         m = 5
@@ -159,6 +160,7 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
         name_original = "Dataset\n" + r"($Y$)"
         name_asynch = "Reconstruction\n(Algorithm 1)"
         name_synch = "Reconstruction\n(RGD)"
+        text_fontsize = 8
     elif option==3:
         figsize = (6,3)
         m = 5
@@ -170,9 +172,21 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
         name_original = "Dataset " + r"($Y$)"
         name_asynch = "Reconstruction (Algorithm 1)"
         name_synch = "Reconstruction (RGD)"
+        text_fontsize = 8
+    elif option==4:
+        figsize = (9,3.8)
+        m = 5
+        recon_indices = list(range(9))
+        recon_rows = 1
+        recon_cols = int(np.ceil(len(recon_indices)/recon_rows))
+        subfig_rows = 3
+        subfig_cols = 1
+        name_original = "Dataset " + r"($Y$)"
+        name_asynch = "Reconstruction (Algorithm 1)"
+        name_synch = "Reconstruction (RGD)"
+        text_fontsize = 6
     
     ieee_width = 3.5
-    text_fontsize = 8
 
     # Load data
     figure_data = None
@@ -194,7 +208,8 @@ def plotVisuals(option, figure_data_file_name, figure_file_name, save_figure):
     v_min_Y = np.min(np.abs(Y))
     v_max_Y = np.max(np.abs(Y))
     fig2 = plt.figure(figsize=figsize, layout="constrained")
-    subfigs2 = fig2.subfigures(subfig_rows, subfig_cols, wspace=0.1, hspace=0.1)
+    # subfigs2 = fig2.subfigures(subfig_rows, subfig_cols, wspace=0.1, hspace=0.1)
+    subfigs2 = fig2.subfigures(subfig_rows, subfig_cols)
     recon_images = {}
     recon_names = [name_original, name_asynch, name_synch]
     for subfig, name in zip(subfigs2, recon_names):
@@ -308,7 +323,7 @@ def calc_fstar(directories):
 
 def main():
     figsize = (8,5)
-    save_fig = False
+    save_fig = True
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
@@ -326,7 +341,7 @@ def main():
                    str(figure_directory_path.joinpath("f_vs_N.pdf").resolve()), 
                    "N", "N", fstar, save_fig)
 
-    plotVisuals(3,
+    plotVisuals(4,
                 str(data_directory_path.joinpath("figure_data.json").resolve()),
                 str(figure_directory_path.joinpath("figure.pdf").resolve()),
                 save_fig)
@@ -334,7 +349,7 @@ def main():
     # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
     # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
 
-    plt.show(block=True)
+    # plt.show(block=True)
 
 
 if __name__ == "__main__":

@@ -68,6 +68,7 @@ def main():
 
         # Experiment 3: Render figure and video
         parameter_set = default_parameters.copy()
+        parameter_set["kmax"] = 5000
         parameter_set["save_final_fig_data"] = True
         parameter_set["save_final_fig_data_name"] = str(save_data_path.joinpath("figure_data.json").resolve())
         parameter_set["save_video"] = True
