@@ -56,7 +56,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     # Plot
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_varied_parameter_values))[:,0:3] # jet, viridis, rainbow
     fig, (ax) = plt.subplots(1,1, figsize=figsize)
-    ax.set(xlabel="Iteration,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
+    ax.set(xlabel="Simulation Tick,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
 
     # Get iterations
     iterations = np.array(results_dict[(rng_seed_values[0], varied_parameter_values[0])]["iterations"])
@@ -151,7 +151,7 @@ def plotExperimentB(figsize, data_directory_path, figure_file_name, varied_param
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_varied_parameter_values))[:,0:3] # jet, viridis, rainbow
     fig, (ax) = plt.subplots(1,1, figsize=figsize)
     fig.subplots_adjust(right=0.73)
-    ax.set(xlabel="Iteration,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
+    ax.set(xlabel="Simulation Tick,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
 
     # Get iterations
     iterations = np.array(results_dict[(rng_seed_values[0], varied_parameter_values[0])]["iterations"])

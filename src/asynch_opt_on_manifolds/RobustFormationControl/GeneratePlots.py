@@ -57,7 +57,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     # Plot
     colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_varied_parameter_values))[:,0:3] # jet, viridis, rainbow
     fig, (ax) = plt.subplots(1,1, figsize=figsize)
-    ax.set(xlabel="Iteration,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
+    ax.set(xlabel="Simulation Tick,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
     ax.set(xscale="log")
 
     # Init speedups
@@ -446,8 +446,8 @@ def main():
     save_fig = True
     # data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
     # figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
-    data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
-    figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control_alpha0")
+    data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
+    figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
     figure_directory_path.mkdir(parents=True, exist_ok=True)
 
     fstar = calc_fstar([str(data_directory_path.joinpath("exp1").resolve())])

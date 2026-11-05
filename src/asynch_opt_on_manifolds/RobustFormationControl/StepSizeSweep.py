@@ -41,7 +41,7 @@ def main():
     values_eta = [0.2, 0.4, 0.8, 1.6] # 1.6
     values_eta2 = [1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 2.0] # 2.0 asynch, 1.8 synch
     values_B = [10, 1000]
-    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
+    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
 
     with multiprocessing.Pool() as pool:
         parameter_sets = []
