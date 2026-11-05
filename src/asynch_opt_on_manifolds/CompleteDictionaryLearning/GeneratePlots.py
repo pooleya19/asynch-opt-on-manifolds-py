@@ -17,6 +17,8 @@ from matplotlib.lines import Line2D
 from pathlib import Path
 import json
 from scipy.stats import gmean
+import logging
+logging.getLogger("fontTools.ttLib.tables._h_e_a_d").setLevel(logging.ERROR)
 
 
 def compress_results(varied_parameters, save_directory_path):

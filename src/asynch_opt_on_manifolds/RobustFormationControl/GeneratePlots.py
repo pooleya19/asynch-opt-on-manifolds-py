@@ -17,7 +17,8 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from pathlib import Path
 import json
-from scipy.stats import gmean
+import logging
+logging.getLogger("fontTools.ttLib.tables._h_e_a_d").setLevel(logging.ERROR)
 
 from asynch_opt_on_manifolds.Utils.RotationUtils import quat_to_rot_mat
 
@@ -89,31 +90,29 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         gavg_suboptimality = np.ones((length_asynch))
         gavg_suboptimality_synch = np.ones((length_synch))
 
-        converged_asynch = True
-        converged_synch =  True
+        gavg_final_iter_asynch = 1
+        gavg_final_iter_synch = 1
 
         for rng_seed in rng_seed_values:
             # Parse run metrics
+            iters = np.array(results_dict[(rng_seed, varied_parameter_value)]["iterations"])
             f = np.array(results_dict[(rng_seed, varied_parameter_value)]["f"])
             f_synch = np.array(results_dict[(rng_seed, varied_parameter_value)]["f_synch"])
             f_stop = results_dict[(rng_seed, varied_parameter_value)]["parameters"]["f_stop"]
 
-            if f[-1] > f_stop:
-                converged_asynch = False
-                f = np.concat((f,f[-1]*np.ones((length_asynch-len(f)))))
-            else:
-                f[f<f_stop] = f_stop
-                f = np.concat((f,f_stop*np.ones((length_asynch-len(f)))))
+            assert f[-1] <= f_stop and f_synch[-1] <= f_stop
 
-            if f_synch[-1] > f_stop:
-                converged_synch = False
-                f_synch = np.concat((f_synch,f_synch[-1]*np.ones((length_synch-len(f_synch)))))
-            else:
-                f_synch[f_synch<f_stop] = f_stop
-                f_synch = np.concat((f_synch,f_stop*np.ones((length_synch-len(f_synch)))))
+            final_iter_asynch = iters[len(f)-1]
+            final_iter_synch = iters[len(f_synch)-1]
 
-            suboptimality = f - fstar
-            suboptimality_synch = f_synch - fstar
+            gavg_final_iter_asynch *= np.power(final_iter_asynch, 1/num_rng_seed_values)
+            gavg_final_iter_synch *= np.power(final_iter_synch, 1/num_rng_seed_values)
+
+            f_padded = np.concat((f,f[-1]*np.ones((length_asynch-len(f)))))
+            f_synch_padded = np.concat((f_synch,f_synch[-1]*np.ones((length_synch-len(f_synch)))))
+
+            suboptimality = f_padded - fstar
+            suboptimality_synch = f_synch_padded - fstar
 
             avg_suboptimality += suboptimality
             avg_suboptimality_synch += suboptimality_synch
@@ -130,26 +129,12 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         gavg_suboptimality = np.power(gavg_suboptimality, 1/num_rng_seed_values)
         gavg_suboptimality_synch = np.power(gavg_suboptimality_synch, 1/num_rng_seed_values)
 
+        speedups.append(gavg_final_iter_synch / gavg_final_iter_asynch)
+
         # ax.plot(iterations, avg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
         # ax.plot(iterations, avg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
         ax.plot(iterations_asynch, gavg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
         ax.plot(iterations_synch,  gavg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
-
-        final_iter_asynch = int(np.max(iterations_asynch))
-        final_iter_synch = int(np.max(iterations_synch))
-
-        print("B=%g:\n\tAsynch: %6g\n\t Synch: %6g" % (varied_parameter_value, final_iter_asynch, final_iter_synch))
-
-        if converged_asynch:
-            if converged_synch:
-                speedups.append(final_iter_synch / final_iter_asynch)
-            else:
-                speedups.append(np.inf)
-        else:
-            if converged_synch:
-                speedups.append(0)
-            else:
-                speedups.append(np.nan)
 
     # Generate legends
     color_handles = [Line2D([], [], color=colors[i,:], linestyle="-", linewidth=2) for i in range(num_varied_parameter_values)]
@@ -181,7 +166,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
     # Save figure
     if save_figure:
-        print("\tSaving %s... " % figure_file_name, end='', flush=True)
+        print("Saving %s... " % figure_file_name, end='', flush=True)
         fig.savefig(figure_file_name, format="pdf", bbox_inches="tight")
         print("Done!")
 
