@@ -135,9 +135,14 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         ax.plot(iterations_asynch, gavg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
         ax.plot(iterations_synch,  gavg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
 
+        final_iter_asynch = int(np.max(iterations_asynch))
+        final_iter_synch = int(np.max(iterations_synch))
+
+        print("B=%g:\n\tAsynch: %6g\n\t Synch: %6g" % (varied_parameter_value, final_iter_asynch, final_iter_synch))
+
         if converged_asynch:
             if converged_synch:
-                speedups.append(length_synch - length_asynch)
+                speedups.append(final_iter_synch / final_iter_asynch)
             else:
                 speedups.append(np.inf)
         else:
@@ -167,12 +172,12 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     # bb = bb.transformed(ax.transAxes.inverted())
     # ax.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax.transAxes)
 
-    speedups = np.floor(speedups)
+    # speedups = np.floor(speedups)
 
     print("Vary %s: Speed Ups: %.1f-%.1f" % (varied_parameter_label,np.min(speedups), np.max(speedups)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        print("\t%s=%g: %g" % (varied_parameter_label, varied_parameter_value, speedups[varied_parameter_index]))
+        print("\t%s=%g: %.2f" % (varied_parameter_label, varied_parameter_value, speedups[varied_parameter_index]))
 
     # Save figure
     if save_figure:
@@ -478,7 +483,7 @@ def main():
     # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step").resolve()))
     # plotStepSizeSweep(str(data_directory_path.joinpath("exp_step2").resolve()))
 
-    plt.show(block=False)
+    # plt.show(block=True)
 
 
 if __name__ == "__main__":

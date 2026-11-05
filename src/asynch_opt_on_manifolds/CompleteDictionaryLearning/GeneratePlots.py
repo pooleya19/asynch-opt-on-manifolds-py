@@ -11,6 +11,7 @@ plt.rcParams.update({
     "xtick.labelsize": 12,   # tick numbers
     "ytick.labelsize": 12,
     "legend.fontsize": 12,
+    "text.hinting": "no_hinting",
 })
 from matplotlib.lines import Line2D
 from pathlib import Path
@@ -114,19 +115,118 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
     leg1 = ax.legend(color_handles, color_labels, loc="lower left")
     ax.add_artist(leg1)
-
     fig.canvas.draw()
     bb = leg1.get_window_extent(fig.canvas.get_renderer())
     bb = bb.transformed(ax.transAxes.inverted())
-
     ax.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax.transAxes)
 
-    suboptimality_reductions = np.floor(suboptimality_reductions)
+    # suboptimality_reductions = np.floor(suboptimality_reductions)
 
-    print("Vary %s: Suboptimality reduction: %.1f-%.1f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
+    print("Vary %s: Suboptimality reduction: %.2f-%.2f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        print("\t%s=%g: %g" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
+        print("\t%s=%g: %.2f" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
+
+    # Save figure
+    if save_figure:
+        print("Saving %s... " % figure_file_name, end='', flush=True)
+        fig.savefig(figure_file_name, format="pdf", bbox_inches="tight")
+        print("Done!")
+
+
+def plotExperimentB(figsize, data_directory_path, figure_file_name, varied_parameter_name, varied_parameter_label, fstar, save_figure):
+    # Compress all results and identify unique parameter values
+    varied_parameters = ["rng_seed", varied_parameter_name]
+    unique_parameter_values, results_dict = compress_results(varied_parameters, data_directory_path)
+
+    # Parse compressed results
+    rng_seed_values = unique_parameter_values[0]
+    varied_parameter_values = unique_parameter_values[1]
+    num_rng_seed_values = len(rng_seed_values)
+    num_varied_parameter_values = len(varied_parameter_values)
+
+    # Plot
+    colors = mpl.colormaps["rainbow"](np.linspace(0, 1, num_varied_parameter_values))[:,0:3] # jet, viridis, rainbow
+    fig, (ax) = plt.subplots(1,1, figsize=figsize)
+    fig.subplots_adjust(right=0.73)
+    ax.set(xlabel="Iteration,  $k$", ylabel=r"Suboptimality,  $f(x(k)) - f^\star$", yscale="log")
+
+    # Get iterations
+    iterations = np.array(results_dict[(rng_seed_values[0], varied_parameter_values[0])]["iterations"])
+    ax.set(xlim=(int(np.min(iterations)),int(np.max(iterations))))
+    num_iterations = np.size(iterations)
+
+    # Init suboptimality reductions
+    suboptimality_reductions = []
+
+    # Parse through all runs
+    for varied_parameter_index in range(num_varied_parameter_values):
+        varied_parameter_value = varied_parameter_values[varied_parameter_index]
+        avg_suboptimality = np.zeros((num_iterations))
+        avg_suboptimality_synch = np.zeros((num_iterations))
+        gavg_suboptimality = np.ones((num_iterations))
+        gavg_suboptimality_synch = np.ones((num_iterations))
+
+        for rng_seed in rng_seed_values:
+            # Check run iterations
+            iters = np.array(results_dict[(rng_seed,varied_parameter_value)]["iterations"])
+            assert np.array_equal(iterations, iters)
+
+            # Parse run metrics
+            f = np.array(results_dict[(rng_seed, varied_parameter_value)]["f"])
+            f_synch = np.array(results_dict[(rng_seed, varied_parameter_value)]["f_synch"])
+
+            suboptimality = f - fstar
+            suboptimality_synch = f_synch - fstar
+
+            avg_suboptimality += suboptimality
+            avg_suboptimality_synch += suboptimality_synch
+
+            gavg_suboptimality *= suboptimality
+            gavg_suboptimality_synch *= suboptimality_synch
+
+            ax.plot(iters, suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=1, alpha=0.1)
+            ax.plot(iters, suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=1, alpha=0.1)
+
+        avg_suboptimality /= num_rng_seed_values
+        avg_suboptimality_synch /= num_rng_seed_values
+
+        gavg_suboptimality = np.power(gavg_suboptimality, 1/num_rng_seed_values)
+        gavg_suboptimality_synch = np.power(gavg_suboptimality_synch, 1/num_rng_seed_values)
+
+        # ax.plot(iterations, avg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
+        # ax.plot(iterations, avg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
+        ax.plot(iterations, gavg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
+        ax.plot(iterations, gavg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
+
+        # suboptimality_reductions.append(avg_suboptimality_synch[-1] / avg_suboptimality[-1])
+        suboptimality_reductions.append(gavg_suboptimality_synch[-1] / gavg_suboptimality[-1])
+
+    # Generate legends
+    color_handles = [Line2D([], [], color=colors[i,:], linestyle="-", linewidth=2) for i in range(num_varied_parameter_values)]
+    color_labels = ["%s=%g"%(varied_parameter_label,varied_parameter_values[i]) for i in range(num_varied_parameter_values)]
+    style_handles = [Line2D([], [], color="black", linestyle="-", linewidth=2),
+                      Line2D([], [], color="black", linestyle=":", linewidth=2)]
+    style_labels = ["Algorithm 1", "RGD"]
+
+    legend_kwargs = dict(mode="expand", borderaxespad=0, handlelength=1.5, handletextpad=0.5)
+    leg1 = ax.legend(color_handles, color_labels, loc="upper left", bbox_to_anchor=(1.01,0.95,0.3,0), **legend_kwargs)
+    ax.add_artist(leg1)
+    ax.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(1.01,0.05,0.3,0), **legend_kwargs)
+
+    # leg1 = ax.legend(color_handles, color_labels, loc="lower left")
+    # ax.add_artist(leg1)
+    # fig.canvas.draw()
+    # bb = leg1.get_window_extent(fig.canvas.get_renderer())
+    # bb = bb.transformed(ax.transAxes.inverted())
+    # ax.legend(style_handles, style_labels, loc="lower left", bbox_to_anchor=(bb.x1, 0), bbox_transform=ax.transAxes)
+
+    # suboptimality_reductions = np.floor(suboptimality_reductions)
+
+    print("Vary %s: Suboptimality reduction: %.2f-%.2f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
+    for varied_parameter_index in range(num_varied_parameter_values):
+        varied_parameter_value = varied_parameter_values[varied_parameter_index]
+        print("\t%s=%g: %.2f" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
 
     # Save figure
     if save_figure:
@@ -322,7 +422,7 @@ def calc_fstar(directories):
 
 
 def main():
-    figsize = (8,5)
+    figsize = (8,4)
     save_fig = True
     data_directory_path = Path(__file__).parents[3].joinpath("data").joinpath("dictionary_learning")
     figure_directory_path = Path(__file__).parents[3].joinpath("figures").joinpath("dictionary_learning")
@@ -331,7 +431,7 @@ def main():
     fstar = calc_fstar([str(data_directory_path.joinpath("exp1").resolve()),
                         str(data_directory_path.joinpath("exp2").resolve())])
 
-    plotExperiment(figsize, 
+    plotExperimentB(figsize, 
                    str(data_directory_path.joinpath("exp1").resolve()), 
                    str(figure_directory_path.joinpath("f_vs_B.pdf").resolve()), 
                    "B_comm", "B", fstar, save_fig)
