@@ -39,8 +39,8 @@ def main():
 
     values_rng_seed = [0,1,2,3,4]
     values_B_comm = [10,20,50,100,200,500,1000]
-    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control_alpha0")
-    save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control_alpha0")
+    save_data_path = Path(__file__).parents[3].joinpath("data").joinpath("formation_control")
+    save_figure_path = Path(__file__).parents[3].joinpath("figures").joinpath("formation_control")
 
     with multiprocessing.Pool() as pool:
         parameter_sets = []
