@@ -126,10 +126,10 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
 
     # suboptimality_reductions = np.floor(suboptimality_reductions)
 
-    print("Vary %s: Suboptimality reduction: %.2f-%.2f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
+    print("Vary %s: Suboptimality reduction: %.1f-%.1f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        print("\t%s=%g: %.2f" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
+        print("\t%s=%g: %.1f" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
 
     # Save figure
     if save_figure:
@@ -157,7 +157,9 @@ def plotExperimentB(figsize, data_directory_path, figure_file_name, varied_param
 
     # Get iterations
     iterations = np.array(results_dict[(rng_seed_values[0], varied_parameter_values[0])]["iterations"])
-    ax.set(xlim=(int(np.min(iterations)),int(np.max(iterations))))
+    min_iteration = int(np.round(np.min(iterations)/100)*100)
+    max_iteration = int(np.round(np.max(iterations)/100)*100)
+    ax.set(xlim=(min_iteration,max_iteration))
     num_iterations = np.size(iterations)
 
     # Init suboptimality reductions
@@ -227,10 +229,10 @@ def plotExperimentB(figsize, data_directory_path, figure_file_name, varied_param
 
     # suboptimality_reductions = np.floor(suboptimality_reductions)
 
-    print("Vary %s: Suboptimality reduction: %.2f-%.2f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
+    print("Vary %s: Suboptimality reduction: %.1f-%.1f" % (varied_parameter_label,np.min(suboptimality_reductions), np.max(suboptimality_reductions)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        print("\t%s=%g: %.2f" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
+        print("\t%s=%g: %.1f" % (varied_parameter_label, varied_parameter_value, suboptimality_reductions[varied_parameter_index]))
 
     # Save figure
     if save_figure:

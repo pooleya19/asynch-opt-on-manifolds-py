@@ -168,7 +168,7 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
     print("Vary %s: Speed Ups: %.1f-%.1f" % (varied_parameter_label,np.min(speedups), np.max(speedups)))
     for varied_parameter_index in range(num_varied_parameter_values):
         varied_parameter_value = varied_parameter_values[varied_parameter_index]
-        print("\t%s=%g: %.2f" % (varied_parameter_label, varied_parameter_value, speedups[varied_parameter_index]))
+        print("\t%s=%g: %.1f" % (varied_parameter_label, varied_parameter_value, speedups[varied_parameter_index]))
 
     # Save figure
     if save_figure:
