@@ -556,7 +556,7 @@ if __name__ == "__main__":
         "B_comm" : 500,
         "kmax" : 10000,
         "eta" : 0.01,
-        "eta_synch" : 0.01,
+        "eta_synch" : 0.02,
         "beta" : 20,
         "sparsity_threshold" : 0.01,
         "m" : 5,
