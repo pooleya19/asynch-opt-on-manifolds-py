@@ -134,6 +134,8 @@ def run_sim(parameters):
     freeze_manifold_point(x_initial)
 
     # Solve centralized problem
+    if show_fig:
+        print("Solving initial centralized solution.")
     centralized_min_grad_norm = 1e-10
     x_star, f_star = runSimCentralizedRBB(ObliqueManifold(), x_initial, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
     A_star = np.hstack(x_star)
@@ -294,12 +296,7 @@ def run_sim(parameters):
             plt.pause(0.01)
 
     # Init video
-    if save_video:
-        video_width, video_height = fig2.canvas.get_width_height(physical=True)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
-        os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
-        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (video_width, video_height))
-
+    video = None
 
     # Init map for tracking x_synch
     x_synch_map = {0:list(x_initial)}
@@ -496,9 +493,17 @@ def run_sim(parameters):
             if save_video:
                 img = np.asarray(fig2.canvas.buffer_rgba())[:,:,:3]
                 img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                
+                if video is None:
+                    video_width, video_height = fig2.canvas.get_width_height(physical=True)
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
+                    os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
+                    video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (video_width, video_height))
                 video.write(img_bgr)
 
     # Post run, solve centralized from both solutions
+    if show_fig:
+        print("Solving final centralized solutions.")
     _, f_star1 = runSimCentralizedRBB(ObliqueManifold(), x, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
     _, f_star2 = runSimCentralizedRBB(ObliqueManifold(), x_synch, eta_synch, data, calculate_euclidean_grad, calculate_f, centralized_min_grad_norm)
     f_star = min(f_star, min(f_star1, f_star2))

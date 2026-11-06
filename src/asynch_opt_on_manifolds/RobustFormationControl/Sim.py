@@ -295,12 +295,7 @@ def run_sim(parameters):
             plt.pause(0.01)
 
     # Init video
-    if save_video:
-        video_width, video_height = fig2.canvas.get_width_height(physical=True)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
-        os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
-        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (video_width, video_height))
-
+    video = None
 
     # Init map for tracking x_synch
     x_synch_map = {0:list(x_initial)}
@@ -458,6 +453,12 @@ def run_sim(parameters):
                 if save_video:
                     img = np.asarray(fig2.canvas.buffer_rgba())[:,:,:3]
                     img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+                    if video is None:
+                        video_width, video_height = fig2.canvas.get_width_height(physical=True)
+                        fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec
+                        os.makedirs(os.path.dirname(save_video_name), exist_ok=True)
+                        video = cv2.VideoWriter(save_video_name, fourcc, 15.0, (video_width, video_height))
                     video.write(img_bgr)
 
         # Check stopping criteria
