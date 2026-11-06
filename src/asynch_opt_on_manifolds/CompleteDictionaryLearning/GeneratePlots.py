@@ -3,7 +3,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 # plt.rcParams["mathtext.fontset"] = "cm"
 plt.rcParams.update({
-    "mathtext.fontset" : "cm",
     "pdf.fonttype" : 42,   # embed TrueType fonts instead of Type 3
     "ps.fonttype" : 42,
     "axes.labelsize": 14,    # axis labels
@@ -11,6 +10,9 @@ plt.rcParams.update({
     "xtick.labelsize": 12,   # tick numbers
     "ytick.labelsize": 12,
     "legend.fontsize": 12,
+    "mathtext.fontset" : "cm",    
+    "font.family": "cmr10",
+    "axes.formatter.use_mathtext": True,
     "text.hinting": "no_hinting",
 })
 from matplotlib.lines import Line2D

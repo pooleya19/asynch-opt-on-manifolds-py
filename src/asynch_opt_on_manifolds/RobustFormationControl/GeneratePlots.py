@@ -3,7 +3,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 # plt.rcParams["mathtext.fontset"] = "cm"
 plt.rcParams.update({
-    "mathtext.fontset" : "cm",
     "pdf.fonttype" : 42,   # embed TrueType fonts instead of Type 3
     "ps.fonttype" : 42, 
     "axes.labelsize": 14,    # axis labels
@@ -11,7 +10,10 @@ plt.rcParams.update({
     "xtick.labelsize": 12,   # tick numbers
     "ytick.labelsize": 12,
     "legend.fontsize": 12,
-    "font.family": "serif",
+    "mathtext.fontset" : "cm",    
+    "font.family": "cmr10",
+    "axes.formatter.use_mathtext": True,
+    "text.hinting": "no_hinting",
 })
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -90,6 +92,9 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         gavg_suboptimality = np.ones((length_asynch))
         gavg_suboptimality_synch = np.ones((length_synch))
 
+        final_iters_gavg_asynch = iterations_asynch[-1]
+        final_iters_gavg_synch = iterations_synch[-1]
+
         gavg_final_iter_asynch = 1
         gavg_final_iter_synch = 1
 
@@ -129,7 +134,8 @@ def plotExperiment(figsize, data_directory_path, figure_file_name, varied_parame
         gavg_suboptimality = np.power(gavg_suboptimality, 1/num_rng_seed_values)
         gavg_suboptimality_synch = np.power(gavg_suboptimality_synch, 1/num_rng_seed_values)
 
-        speedups.append(gavg_final_iter_synch / gavg_final_iter_asynch)
+        # speedups.append(gavg_final_iter_synch / gavg_final_iter_asynch)
+        speedups.append(final_iters_gavg_synch / final_iters_gavg_asynch)
 
         # ax.plot(iterations, avg_suboptimality,       color=colors[varied_parameter_index,:], linestyle="-", linewidth=2, alpha=1)
         # ax.plot(iterations, avg_suboptimality_synch, color=colors[varied_parameter_index,:], linestyle=":", linewidth=2, alpha=1)
@@ -309,10 +315,10 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
     #           (x_initial,   "Initial Poses",     (0.5, panel_height + gap)),
     #           (x,           "Final Poses (Algorithm 1)",       (0.0, 0.0)),
     #           (x_synch,     "Final Poses (RGD)",               (0.5, 0.0))]
-    panels = [(x_formation, "Desired Formation", (0.0, 0.0)),
-              (x_initial,   "Initial Poses",     (0.25, 0.0)),
-              (x,           "Final Poses (Algorithm 1)",       (0.5, 0.0)),
-              (x_synch,     "Final Poses (RGD)",               (0.75, 0.0))]
+    panels = [(x_formation, "Desired\nFormation", (0.0, 0.0)),
+              (x_initial,   "Initial\nPoses",     (0.25, 0.0)),
+              (x,           "Final Poses\n(Algorithm 1)",       (0.5, 0.0)),
+              (x_synch,     "Final Poses\n(RGD)",               (0.75, 0.0))]
 
     for x_plot, caption, (x0, y0) in panels:
         # ax = fig2.add_axes([x0, y0+caption_height, 0.5, panel_height-caption_height], projection="3d")
@@ -333,10 +339,10 @@ def plotVisuals2(figure_data_file_name, figure_file_name, save_figure, show_divi
 
         # Plot title
         # fig2.text(x0+0.25, y0+caption_height/2, caption, ha="center", va="center", fontsize=text_fontsize/ieee_width*figsize[0])
-        fig2.text(x0+0.125, y0+caption_height/2, caption, ha="center", va="center", fontsize=18)
+        fig2.text(x0+0.125, y0+caption_height/2, caption, ha="center", va="center", fontsize=24)
 
         # Plot x-y-z axes indicator
-        ax_xyz = fig2.add_axes([x0+0.007, y0+caption_height+0.02, 0.07, 0.11], projection="3d")
+        ax_xyz = fig2.add_axes([x0-0.01, y0+caption_height+0.08, 0.07, 0.11], projection="3d")
         for c, (name, color) in enumerate(zip("xyz", "rgb")):
             e = np.zeros(3)
             e[c] = 1
